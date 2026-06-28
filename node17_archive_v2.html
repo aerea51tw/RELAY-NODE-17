@@ -339,7 +339,7 @@ body::after {
 <!-- PAGE 0 — BOOT -->
 <div class="page active" id="page-boot">
   <div class="page-statusbar">
-    <span>aerea51tw // RELAY-NODE-17</span>
+    <span>aerea51tw // RELAY-NODE-17</span><br>
     <span>◆ INTERNAL ARCHIVE SYSTEM ◆</span>
     <span><span class="live-dot"></span><span id="clock0">──:──:──</span></span>
   </div>
@@ -890,7 +890,8 @@ async function page2026(){
   await sleep(800);
 
   const bw=addEl('div','',body); bw.style.margin='12px 0 16px';
-  bw.innerHTML=`<span class="badge b-cyan">SIGNAL LOCK CONFIRMED</span><span class="badge b-yellow">TARGET: 臺北大巨蛋</span><span class="badge b-purple">aespa 2026 TAIWAN</span>`;
+  bw.innerHTML=`<span class="badge b-cyan">SIGNAL LOCK CONFIRMED</span><span class="badge b-yellow">TARGET: 臺北大巨蛋</span><span class="badge b-purple"> aespa 2026 SYNK : COMPLaeXITY - in Taipei 
+</span>`;
   addEl('hr','rule',body);
 
   await addLine('這次，我們終於等到了。','t-cyan',body,25);
@@ -973,7 +974,7 @@ async function endPage(){
   await eLine('[SYSTEM]  偵測到未授權使用者完整存取機密檔案','t-red');
   await eLine('[SYSTEM]  使用者並非來自 aerea51tw 組織','t-red');
   await eLine('[SYSTEM]  IP ORIGIN   : UNKNOWN — TAIWAN SECTOR','t-white');
-  await eLine('[SYSTEM]  ACCESS LEVEL: FULL — 所有機密內容已被讀取','t-red');
+  await eLine('[SYSTEM]  ACCESS LEVEL: FULL — 機密內容已被讀取','t-red');
   await sleep(200);
   addEl('hr','rule',epanel);
 
@@ -1021,7 +1022,7 @@ async function endPage(){
 
   const msg=addEl('div','',finalWrap);
   msg.style.cssText='font-size:14px;color:var(--white);line-height:2.1;margin-bottom:30px';
-  msg.innerHTML=`你不該看到這些的。<br>但既然看到了——<br><span style="color:var(--cyan)">歡迎成為知道這個秘密的台灣 MY。</span>`;
+  msg.innerHTML=`你不該看到這些的。<br>但既然看到了——<br><span style="color:var(--cyan)">歡迎成為知道這個祕密的台灣 MY。</span>`;
 
   const link=addEl('a','',finalWrap);
   link.href='https://linktr.ee/aerea51tw?utm_source=linktree_profile_share&ltsid=e4e1ca84-9003-41ef-bd5f-50df44916e93';
