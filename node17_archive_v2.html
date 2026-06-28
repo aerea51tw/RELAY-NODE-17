@@ -1044,7 +1044,7 @@ bootPage();
 (async () => {
   try {
     const res = await fetch(
-      'https://api.counterapi.dev/v1/aerea51tw/kwangya-signal/hit'
+      'https://api.counterapi.dev/v1/aerea51tw/kwangya-signal/UP'
     );
     const data = await res.json();
     const count = data.count ?? '──';
@@ -1056,6 +1056,7 @@ bootPage();
     if (el) el.textContent = 'SIGNAL ──────';
   }
 })();
+
 
 </script>
 </body>
