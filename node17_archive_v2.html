@@ -1044,20 +1044,19 @@ bootPage();
 (async () => {
   try {
     const res = await fetch(
-      'https://api.counterapi.dev/v1/aerea51tw/kwangya-signal/UP'
+      'https://hits.sh/aerea51tw.github.io/RELAY-NODE-17/node17_archive_v2.html.json'
     );
     const data = await res.json();
-    console.log('API回傳:', JSON.stringify(data)); // 先看看回傳什麼
-    const count = data.count ?? data.value ?? data.Count ?? '──';
+    const count = data.total ?? '──';
     const padded = String(count).padStart(6, '0');
     const el = document.getElementById('visit-counter');
     if (el) el.textContent = `SIGNAL ${padded}`;
   } catch (e) {
-    console.log('錯誤:', e.message);
     const el = document.getElementById('visit-counter');
     if (el) el.textContent = 'SIGNAL ──────';
   }
 })();
+
 
 
 </script>
