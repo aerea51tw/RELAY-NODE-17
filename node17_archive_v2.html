@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>aerea51tw // KWANGYA SIGNAL</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+:root {
+  --cyan:        #00e5c8;
+  --cyan-dim:    #00a08c;   /* brighter than before for panel headers */
+  --cyan-faint:  #001f1a;
+  --purple:      #c400ff;
+  --green:       #39ff14;
+  --red:         #ff2244;
+  --yellow:      #ffd700;
+  --white:       #ddeae6;   /* main body text */
+  --white-dim:   #9ab5af;   /* secondary text — lifted from #7a9490 */
+  --white-faint: #5a7a74;   /* meta/comment text — lifted from #2e4440 */
+  --ui-text:     #8fb5ae;   /* header/footer/statusbar text — new token */
+  --ui-label:    #b8d4ce;   /* brighter label for header titles */
+  --bg:          #060808;
+  --panel:       #09100f;
+  --panel2:      #0c1512;
+  --border:      #1e3230;   /* slightly brighter border */
+  --border-hi:   #2e5050;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  width:100%; height:100%;
+  background: var(--bg);
+  color: var(--white);
+  font-family: 'Share Tech Mono','Courier New',monospace;
+  font-size: 14px;
+  line-height: 1.75;
+  overflow: hidden;
+}
+
+/* CRT scanlines */
+body::before {
+  content:''; position:fixed; inset:0;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 3px,
+    rgba(0,229,200,0.009) 3px, rgba(0,229,200,0.009) 4px
+  );
+  pointer-events:none; z-index:9997;
+}
+/* Vignette */
+body::after {
+  content:''; position:fixed; inset:0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+  pointer-events:none; z-index:9996;
+}
+
+/* hex rain */
+#hexRain {
+  position:fixed; inset:0;
+  overflow:hidden; pointer-events:none; z-index:0; opacity:0.05;
+}
+.rain-col {
+  position:absolute; top:0;
+  font-size:10px; color:var(--cyan);
+  writing-mode:vertical-rl;
+  animation:rainFall linear infinite;
+  white-space:nowrap; letter-spacing:4px;
+}
+@keyframes rainFall {
+  0%   { transform:translateY(-110%); opacity:0; }
+  8%   { opacity:1; }
+  92%  { opacity:1; }
+  100% { transform:translateY(110vh); opacity:0; }
+}
+
+/* ── PAGE SYSTEM ── */
+.page {
+  position:fixed; inset:0;
+  background: var(--bg);
+  display:none;
+  flex-direction:column;
+  z-index:1;
+  overflow:hidden;
+}
+.page.active { display:flex; }
+
+.page-statusbar {
+  flex-shrink:0;
+  background: var(--bg);
+  border-bottom:1px solid var(--border);
+  padding:8px 20px;
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:10px; letter-spacing:2px;
+  color: var(--ui-text);   /* ← lifted colour */
+  z-index:10;
+}
+
+.page-content {
+  flex:1; overflow-y:auto; overflow-x:hidden;
+  padding:32px 20px 80px;
+  -webkit-overflow-scrolling:touch;
+}
+.page-content::-webkit-scrollbar { width:4px; }
+.page-content::-webkit-scrollbar-track { background:var(--bg); }
+.page-content::-webkit-scrollbar-thumb { background:var(--border-hi); border-radius:2px; }
+
+.page-footer {
+  flex-shrink:0;
+  background: var(--bg);
+  border-top:1px solid var(--border);
+  padding:10px 20px;
+  display:flex; justify-content:space-between;
+  font-size:10px;
+  color: var(--ui-text);   /* ← lifted colour */
+  letter-spacing:2px;
+}
+
+/* Live dot */
+.live-dot {
+  display:inline-block; width:6px; height:6px;
+  border-radius:50%; background:var(--green);
+  box-shadow:0 0 5px var(--green);
+  animation:livePulse 1.4s ease-in-out infinite;
+  margin-right:6px;
+}
+@keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+
+/* ── TITLE ── */
+.main-title { text-align:center; margin-bottom:6px; }
+.main-title .line1 {
+  font-family:'Orbitron',monospace;
+  font-size:clamp(11px,2.8vw,20px);
+  font-weight:400; color:var(--ui-label);
+  letter-spacing:5px; display:block; margin-bottom:4px;
+}
+.main-title .line2 {
+  font-family:'Orbitron',monospace;
+  font-size:clamp(16px,4.5vw,34px);
+  font-weight:900; color:var(--cyan);
+  letter-spacing:4px; display:block;
+}
+.sub-title {
+  text-align:center;
+  color: var(--ui-text);
+  font-size:10px; letter-spacing:3px; margin-bottom:40px;
+}
+
+/* ── PANELS ── */
+.panel {
+  border:1px solid var(--border);
+  background:var(--panel);
+  margin-bottom:20px; position:relative;
+}
+.panel-header {
+  background:var(--panel2);
+  border-bottom:1px solid var(--border);
+  padding:8px 14px; font-size:10px; letter-spacing:3px;
+  color: var(--cyan-dim);  /* now brighter */
+  display:flex; align-items:center; gap:7px;
+}
+.pd { width:8px; height:8px; border-radius:50%; display:inline-block; }
+.pd-r{background:#ff5f56} .pd-y{background:#ffbd2e} .pd-g{background:#27c93f}
+.panel-body { padding:18px 18px 18px 22px; position:relative; }
+.panel-body::before {
+  content:''; position:absolute;
+  left:0; top:0; bottom:0; width:2px; background:var(--border);
+}
+
+/* ── CURSOR ── */
+.cursor {
+  display:inline-block; width:8px; height:14px;
+  background:var(--cyan); margin-left:2px; vertical-align:middle;
+  animation:blink .75s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* ── TYPE UTILS ── */
+.t-white   { color:var(--white); }
+.t-dim     { color:var(--white-dim); }    /* secondary body text */
+.t-faint   { color:var(--white-faint); }  /* comment/meta — was nearly invisible */
+.t-cyan    { color:var(--cyan); }
+.t-cyan-d  { color:var(--cyan-dim); }
+.t-green   { color:var(--green); }
+.t-purple  { color:var(--purple); }
+.t-red     { color:var(--red); }
+.t-yellow  { color:var(--yellow); }
+
+.kw-kwangya { color:var(--cyan); letter-spacing:1px; }
+.kw-synk    { color:var(--purple); }
+.kw-failed  { color:var(--red); animation:flicker 1.8s ease-in-out infinite; }
+@keyframes flicker { 0%,100%{opacity:1} 45%,55%{opacity:.3} }
+
+.rule { border:none; border-top:1px solid var(--border); margin:14px 0; }
+
+/* ── PROGRESS ── */
+.prog-wrap  { display:flex; align-items:center; gap:10px; margin:10px 0; }
+.prog-track { flex:1; height:3px; background:var(--border); position:relative; overflow:hidden; }
+.prog-fill  { position:absolute; left:0;top:0;bottom:0; width:0%; background:var(--cyan); }
+.prog-pct   { color:var(--cyan); font-size:12px; min-width:40px; }
+
+/* ── ENERGY BARS ── */
+.e-row   { display:flex; align-items:center; gap:10px; margin:5px 0; }
+.e-label { font-size:10px; color:var(--white-faint); letter-spacing:1px; width:110px; flex-shrink:0; }
+.e-track { flex:1; height:2px; background:var(--border); position:relative; overflow:hidden; }
+.e-fill  { position:absolute; left:0;top:0;bottom:0; width:0%; }
+.e-val   { font-size:11px; color:var(--white-dim); width:34px; text-align:right; flex-shrink:0; }
+
+/* ── FILE ITEMS ── */
+.file-item {
+  display:flex; align-items:center; gap:10px;
+  padding:9px 12px;
+  border:1px solid var(--border); background:var(--bg);
+  margin-bottom:6px; cursor:pointer;
+  text-decoration:none; color:var(--white);
+  transition:border-color .2s, background .2s;
+  -webkit-tap-highlight-color:transparent;
+}
+.file-item:hover,.file-item:active { border-color:var(--cyan-dim); background:var(--cyan-faint); }
+.file-item.active { border-color:var(--cyan); }
+.fi-name { flex:1; color:var(--white); font-size:13px; }
+.fi-meta { color:var(--white-faint); font-size:10px; }
+.fi-arr  { color:var(--white-dim); flex-shrink:0; }
+
+/* ── BADGES ── */
+.badge {
+  display:inline-block; padding:2px 7px;
+  font-size:10px; letter-spacing:2px;
+  border:1px solid currentColor; margin:3px 4px 3px 0;
+}
+.b-red    { color:var(--red);    border-color:var(--red);    background:rgba(255,34,68,.07); }
+.b-cyan   { color:var(--cyan);   border-color:var(--cyan);   background:rgba(0,229,200,.06); }
+.b-purple { color:var(--purple); border-color:var(--purple); background:rgba(196,0,255,.06); }
+.b-yellow { color:var(--yellow); border-color:var(--yellow); background:rgba(255,215,0,.06); }
+
+/* ── COORD BOX ── */
+.coord-box {
+  border:1px solid var(--cyan-dim);
+  background:var(--cyan-faint);
+  padding:14px 16px; margin:10px 0; position:relative;
+}
+.coord-cross {
+  position:absolute; top:10px; right:12px;
+  font-size:18px; color:var(--cyan-dim);
+  animation:rotateCross 3s linear infinite; line-height:1;
+}
+@keyframes rotateCross { 100%{ transform:rotate(360deg); } }
+
+/* signal bars */
+.sig-bars { display:inline-flex; gap:3px; align-items:flex-end; margin-left:6px; vertical-align:middle; }
+.sb { display:inline-block; width:4px; background:var(--border-hi); border-radius:1px; }
+.sb.on { background:var(--cyan); }
+
+/* ── DOME SVG container ── */
+.dome-wrap {
+  margin:16px 0 4px;
+  text-align:center;
+  opacity:0;
+  transition:opacity 1s ease;
+}
+.dome-wrap.visible { opacity:1; }
+
+/* ── BUTTON ── */
+.btn {
+  display:block; margin:0 auto;
+  padding:12px 32px; background:transparent;
+  border:1px solid var(--white-faint); color:var(--white);
+  font-family:'Share Tech Mono',monospace;
+  font-size:12px; letter-spacing:4px;
+  cursor:pointer; text-transform:uppercase;
+  transition:all .15s; -webkit-tap-highlight-color:transparent;
+}
+.btn:hover,.btn:active { border-color:var(--cyan); color:var(--cyan); background:var(--cyan-faint); }
+
+/* big status */
+.big-status {
+  font-family:'Orbitron',monospace;
+  font-size:clamp(13px,3.2vw,26px); font-weight:900;
+  letter-spacing:3px; text-align:center; margin:16px 0 8px;
+}
+
+/* ── GLITCH ── */
+@keyframes gA {
+  0%  { clip-path:inset(5% 0 88% 0);  transform:translate(-5px,0); }
+  25% { clip-path:inset(45% 0 35% 0); transform:translate(5px,0);  }
+  50% { clip-path:inset(20% 0 60% 0); transform:translate(-3px,0); }
+  75% { clip-path:inset(68% 0 14% 0); transform:translate(4px,0);  }
+  100%{ clip-path:inset(5% 0 88% 0);  transform:translate(0,0);    }
+}
+.glitch-host { position:relative; }
+.glitch-host.glitching::before,
+.glitch-host.glitching::after {
+  content:attr(data-g); position:absolute; inset:0; font:inherit;
+}
+.glitch-host.glitching::before { color:var(--purple); animation:gA .22s linear infinite; opacity:.75; }
+.glitch-host.glitching::after  { color:var(--red);    animation:gA .22s linear reverse infinite; opacity:.5; left:3px; }
+
+@keyframes bodyShake {
+  0%,100%{transform:translateX(0)}
+  15%{transform:translateX(-6px) skewX(-1.5deg)}
+  35%{transform:translateX(6px) skewX(1.5deg)}
+  55%{transform:translateX(-3px)}
+  75%{transform:translateX(3px)}
+  90%{transform:translateX(-1px)}
+}
+.shaking { animation:bodyShake .45s ease-in-out; }
+
+/* page transition */
+@keyframes pageIn {
+  from { opacity:0; transform:translateY(8px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.page.active .page-content { animation:pageIn .35s ease forwards; }
+
+/* screen tear */
+@keyframes tear {
+  0%  { filter:none; }
+  12% { filter:hue-rotate(90deg) saturate(4); transform:skewX(-3deg); }
+  25% { filter:invert(1); transform:skewX(2deg) translateX(-6px); }
+  38% { filter:hue-rotate(180deg) contrast(2); transform:translateX(6px); }
+  52% { filter:saturate(0) brightness(2); transform:skewX(1.5deg); }
+  68% { filter:invert(.9) hue-rotate(270deg); transform:skewX(-1.5deg); }
+  82% { filter:none; transform:none; }
+  100%{ filter:none; transform:none; }
+}
+.screen-tearing { animation:tear .55s steps(2) forwards; }
+
+/* ── ENDING ── */
+#page-end .page-content {
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  text-align:center;
+}
+</style>
+</head>
+<body>
+
+<div id="hexRain"></div>
+
+<!-- PAGE 0 — BOOT -->
+<div class="page active" id="page-boot">
+  <div class="page-statusbar">
+    <span>aerea51tw // RELAY-NODE-17</span>
+    <span>◆ INTERNAL ARCHIVE SYSTEM ◆</span>
+    <span><span class="live-dot"></span><span id="clock0">──:──:──</span></span>
+  </div>
+  <div class="page-content" id="bootContent">
+    <div class="main-title glitch-host" data-g="[ DECLASSIFIED ]">
+      <span class="line1">［ DECLASSIFIED ］</span>
+      <span class="line2">KWANGYA SIGNAL</span>
+    </div>
+    <div class="sub-title">宇宙機密觀測檔案 — aerea51tw INTERNAL ARCHIVE</div>
+    <div id="bootPanel"></div>
+  </div>
+  <div class="page-footer">
+    <span>aerea51tw // CLASSIFIED</span>
+    <span id="sid0">SESSION: ──────────────</span>
+    <span>NODE-17 // KWANGYA</span>
+  </div>
+</div>
+
+<!-- PAGE 1 — FILE INDEX -->
+<div class="page" id="page-index">
+  <div class="page-statusbar">
+    <span>aerea51tw // RELAY-NODE-17</span>
+    <span>◆ ARCHIVE NAVIGATOR ◆</span>
+    <span><span class="live-dot"></span><span id="clock1">──:──:──</span></span>
+  </div>
+  <div class="page-content" id="indexContent"></div>
+  <div class="page-footer">
+    <span>aerea51tw // CLASSIFIED</span>
+    <span id="sid1">SESSION: ──────────────</span>
+    <span>NODE-17 // KWANGYA</span>
+  </div>
+</div>
+
+<!-- PAGE 2 — RECORD 2024 -->
+<div class="page" id="page-2024">
+  <div class="page-statusbar">
+    <span>RECORD_2024.LOG</span>
+    <span>◆ VIEWING LOG ◆</span>
+    <span><span class="live-dot"></span><span id="clock2">──:──:──</span></span>
+  </div>
+  <div class="page-content" id="content2024"></div>
+  <div class="page-footer">
+    <span>aerea51tw // CLASSIFIED</span>
+    <span id="sid2">SESSION: ──────────────</span>
+    <span>2024 // TAIWAN</span>
+  </div>
+</div>
+
+<!-- PAGE 3 — RECORD 2026 -->
+<div class="page" id="page-2026">
+  <div class="page-statusbar" id="sb2026">
+    <span>RECORD_2026.LOG</span>
+    <span>◆ VIEWING LOG ◆</span>
+    <span><span class="live-dot"></span><span id="clock3">──:──:──</span></span>
+  </div>
+  <div class="page-content" id="content2026"></div>
+  <div class="page-footer">
+    <span>aerea51tw // CLASSIFIED</span>
+    <span id="sid3">SESSION: ──────────────</span>
+    <span>2026 // TAIWAN</span>
+  </div>
+</div>
+
+<!-- PAGE 4 — ENDING -->
+<div class="page" id="page-end">
+  <div class="page-statusbar" id="sbEnd">
+    <span style="color:var(--red)">!! UNAUTHORIZED ACCESS !!</span>
+    <span style="color:var(--red)">LOCKDOWN INITIATED</span>
+    <span><span class="live-dot" style="background:var(--red);box-shadow:0 0 5px var(--red)"></span><span id="clock4">──:──:──</span></span>
+  </div>
+  <div class="page-content" id="contentEnd"></div>
+  <div class="page-footer">
+    <span style="color:var(--ui-text)">aerea51tw // KWANGYA SIGNAL</span>
+    <span style="color:var(--ui-text)">// 2026</span>
+    <span style="color:var(--ui-text)">END OF FILE</span>
+  </div>
+</div>
+
+<script>
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Session ID
+const SID = Array.from({length:16},()=>Math.floor(Math.random()*16).toString(16).toUpperCase()).join('');
+['sid0','sid1','sid2','sid3'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='SESSION: '+SID; });
+
+// Clocks
+function startClock(id){
+  const el=document.getElementById(id); if(!el)return;
+  const tick=()=>{ const n=new Date(); el.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0'); };
+  tick(); setInterval(tick,1000);
+}
+['clock0','clock1','clock2','clock3','clock4'].forEach(startClock);
+
+// Hex rain
+(()=>{
+  const rain=document.getElementById('hexRain');
+  const ch='0123456789ABCDEF';
+  for(let i=0;i<22;i++){
+    const c=document.createElement('div'); c.className='rain-col';
+    c.style.left=(Math.random()*100)+'%';
+    c.style.animationDuration=(9+Math.random()*14)+'s';
+    c.style.animationDelay=(-Math.random()*22)+'s';
+    let t=''; for(let j=0;j<32;j++) t+=ch[Math.floor(Math.random()*16)];
+    c.textContent=t; rain.appendChild(c);
+  }
+})();
+
+// ── DOM helpers ──────────────────────────────────────────────────
+function addEl(tag,cls,parent){
+  const el=document.createElement(tag);
+  if(cls)el.className=cls;
+  (parent||document.body).appendChild(el);
+  return el;
+}
+function tw(el,text,speed=20){
+  return new Promise(res=>{
+    let i=0;
+    const cur=document.createElement('span'); cur.className='cursor'; el.appendChild(cur);
+    const iv=setInterval(()=>{
+      if(i<text.length){ cur.before(text[i++]); }
+      else{ clearInterval(iv); cur.remove(); res(); }
+    },speed+Math.random()*8);
+  });
+}
+function addLine(text,cls,parent,speed=20,mb=3){
+  return new Promise(async res=>{
+    const p=addEl('p',cls,parent); p.style.marginBottom=mb+'px';
+    await tw(p,text,speed); res(p);
+  });
+}
+function addHTML(html,parent){
+  const d=document.createElement('div'); d.innerHTML=html; (parent||document.body).appendChild(d); return d;
+}
+function makePanel(label,parent){
+  const wrap=document.createElement('div'); wrap.className='panel'; wrap.style.marginBottom='18px';
+  wrap.innerHTML=`<div class="panel-header"><span class="pd pd-r"></span><span class="pd pd-y"></span><span class="pd pd-g"></span><span style="margin-left:6px">${label}</span></div><div class="panel-body"></div>`;
+  (parent||document.body).appendChild(wrap);
+  return { wrap, body:wrap.querySelector('.panel-body') };
+}
+
+// ── Animations ───────────────────────────────────────────────────
+function animProg(fill,pct,ms=1600){
+  return new Promise(res=>{
+    let cur=0;
+    const iv=setInterval(()=>{
+      cur=Math.min(cur+1,100); fill.style.width=cur+'%'; if(pct)pct.textContent=cur+'%';
+      if(cur>=100){clearInterval(iv);res();}
+    },ms/100);
+  });
+}
+function animEnergy(trackEl,valEl,target,color='var(--cyan)',ms=900){
+  return new Promise(res=>{
+    const f=trackEl.querySelector('.e-fill'); f.style.background=color;
+    let cur=0; const step=target/(ms/20);
+    const iv=setInterval(()=>{
+      cur=Math.min(cur+step,target); f.style.width=cur+'%';
+      if(valEl)valEl.textContent=Math.round(cur)+'%';
+      if(cur>=target){clearInterval(iv);res();}
+    },20);
+  });
+}
+function glitch(el,ms=500){
+  el.classList.add('glitching'); document.body.classList.add('shaking');
+  setTimeout(()=>{ el.classList.remove('glitching'); document.body.classList.remove('shaking'); },ms);
+}
+
+// ── Navigation (forward only) ────────────────────────────────────
+function goPage(id){
+  document.querySelectorAll('.page.active').forEach(p=>p.classList.remove('active'));
+  const next=document.getElementById(id); if(next) next.classList.add('active');
+}
+
+// ── Dome SVG wireframe ───────────────────────────────────────────
+// Isometric-perspective view matching Taipei Dome:
+//   - Fully enclosed oval roof (no opening)
+//   - Latitude rings on roof surface
+//   - Longitude ribs converging at apex
+//   - Two-layer base wall (outer concourse + inner bowl)
+//   - Glowing orbit ring on the ground plane
+//   - Animated scan line sweeping the roof
+function buildDomeSVG(){
+  return `
+<svg viewBox="0 0 360 230" width="100%" style="max-width:380px;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="glow2" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softglow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <!-- Clip to roof ellipse so scan line stays inside -->
+    <clipPath id="roofClip">
+      <ellipse cx="180" cy="85" rx="148" ry="56"/>
+    </clipPath>
+  </defs>
+
+  <!-- ── Ground grid (perspective) ── -->
+  <line x1="32" y1="182" x2="328" y2="182" stroke="#002a25" stroke-width="0.6" opacity="0.5"/>
+  <line x1="10" y1="195" x2="350" y2="195" stroke="#002a25" stroke-width="0.4" opacity="0.35"/>
+  <line x1="180" y1="182" x2="100" y2="220" stroke="#002a25" stroke-width="0.4" opacity="0.3"/>
+  <line x1="180" y1="182" x2="260" y2="220" stroke="#002a25" stroke-width="0.4" opacity="0.3"/>
+  <line x1="130" y1="182" x2="70"  y2="215" stroke="#002a25" stroke-width="0.3" opacity="0.25"/>
+  <line x1="230" y1="182" x2="290" y2="215" stroke="#002a25" stroke-width="0.3" opacity="0.25"/>
+
+  <!-- ── ORBIT RING (ground plane glow — like image 1) ── -->
+  <!-- outer soft ring -->
+  <ellipse cx="180" cy="185" rx="155" ry="22" fill="none" stroke="#00e5c8" stroke-width="3" opacity="0.12" filter="url(#glow2)"/>
+  <!-- main ring -->
+  <ellipse cx="180" cy="185" rx="148" ry="19" fill="none" stroke="#00e5c8" stroke-width="1.4" opacity="0.7" filter="url(#softglow)"/>
+  <!-- inner ring accent -->
+  <ellipse cx="180" cy="185" rx="136" ry="16" fill="none" stroke="#c400ff" stroke-width="0.7" opacity="0.35"/>
+  <!-- ring animated pulse -->
+  <ellipse cx="180" cy="185" rx="148" ry="19" fill="none" stroke="#00e5c8" stroke-width="2" opacity="0">
+    <animate attributeName="opacity" values="0;0.5;0" dur="2.4s" repeatCount="indefinite"/>
+    <animate attributeName="rx" values="148;162;148" dur="2.4s" repeatCount="indefinite"/>
+    <animate attributeName="ry" values="19;23;19" dur="2.4s" repeatCount="indefinite"/>
+  </ellipse>
+
+  <!-- ── OUTER WALL (lower concourse, visible front face) ── -->
+  <!-- front bottom edge of outer wall -->
+  <path d="M 33 175 Q 180 190 327 175" fill="none" stroke="#00a08c" stroke-width="0.8" opacity="0.5"/>
+  <!-- outer wall face fill (very dark teal) -->
+  <path d="M 33 168 Q 180 183 327 168 L 327 175 Q 180 190 33 175 Z" fill="#010f0d" stroke="#005a50" stroke-width="0.5" opacity="0.9"/>
+  <!-- window band on outer wall -->
+  <path d="M 52 170 Q 180 183 308 170" fill="none" stroke="#00e5c8" stroke-width="0.6" opacity="0.4"/>
+
+  <!-- ── BASE ELLIPSE TOP of outer wall ── -->
+  <ellipse cx="180" cy="168" rx="147" ry="18" fill="#010f0d" stroke="#00a08c" stroke-width="1.1" filter="url(#softglow)"/>
+
+  <!-- ── INNER WALL (bowl, slightly smaller) ── -->
+  <path d="M 52 163 Q 180 176 308 163 L 308 168 Q 180 181 52 168 Z" fill="#010f0d" stroke="#005a50" stroke-width="0.5" opacity="0.85"/>
+  <ellipse cx="180" cy="163" rx="128" ry="14" fill="#010f0d" stroke="#005a50" stroke-width="0.7" opacity="0.8"/>
+
+  <!-- ── ROOF SURFACE (solid filled ellipse, no opening) ── -->
+  <!-- dark fill so ribs show on top -->
+  <ellipse cx="180" cy="85" rx="148" ry="56" fill="#060e0c" stroke="none"/>
+
+  <!-- ── ROOF LONGITUDE RIBS (converge at apex 180,32) ── -->
+  <!-- left outer -->
+  <path d="M 33 168 Q 38 110 180 32" fill="none" stroke="#005a50" stroke-width="0.7" opacity="0.55"/>
+  <!-- left 1 -->
+  <path d="M 68 175 Q 70 108 180 32"  fill="none" stroke="#005a50" stroke-width="0.7" opacity="0.6"/>
+  <!-- left 2 -->
+  <path d="M 108 178 Q 112 100 180 32" fill="none" stroke="#005a50" stroke-width="0.7" opacity="0.65"/>
+  <!-- left 3 -->
+  <path d="M 145 179 Q 150 92 180 32"  fill="none" stroke="#00a08c" stroke-width="0.8" opacity="0.7"/>
+  <!-- centre -->
+  <line x1="180" y1="180" x2="180" y2="32" stroke="#00a08c" stroke-width="0.9" opacity="0.75"/>
+  <!-- right 3 -->
+  <path d="M 215 179 Q 210 92 180 32"  fill="none" stroke="#00a08c" stroke-width="0.8" opacity="0.7"/>
+  <!-- right 2 -->
+  <path d="M 252 178 Q 248 100 180 32" fill="none" stroke="#005a50" stroke-width="0.7" opacity="0.65"/>
+  <!-- right 1 -->
+  <path d="M 292 175 Q 290 108 180 32" fill="none" stroke="#005a50" stroke-width="0.7" opacity="0.6"/>
+  <!-- right outer -->
+  <path d="M 327 168 Q 322 110 180 32" fill="none" stroke="#005a50" stroke-width="0.7" opacity="0.55"/>
+
+  <!-- ── ROOF LATITUDE RINGS ── -->
+  <ellipse cx="180" cy="148" rx="140" ry="13" fill="none" stroke="#005a50" stroke-width="0.7" opacity="0.7"/>
+  <ellipse cx="180" cy="128" rx="132" ry="20" fill="none" stroke="#005a50" stroke-width="0.7" opacity="0.7"/>
+  <ellipse cx="180" cy="108" rx="120" ry="28" fill="none" stroke="#00a08c" stroke-width="0.8" opacity="0.75"/>
+  <ellipse cx="180" cy="85"  rx="102" ry="37" fill="none" stroke="#00a08c" stroke-width="0.8" opacity="0.75"/>
+  <ellipse cx="180" cy="62"  rx="72"  rx="72" ry="26" fill="none" stroke="#005a50" stroke-width="0.6" opacity="0.6"/>
+  <ellipse cx="180" cy="46"  rx="38"  ry="14" fill="none" stroke="#005a50" stroke-width="0.5" opacity="0.5"/>
+
+  <!-- ── ROOF OUTER EDGE (main silhouette) ── -->
+  <ellipse cx="180" cy="85" rx="148" ry="56" fill="none" stroke="#00e5c8" stroke-width="1.6" filter="url(#softglow)"/>
+
+  <!-- ── APEX DOT ── -->
+  <circle cx="180" cy="32" r="3.5" fill="#00e5c8" opacity="0.95" filter="url(#glow2)"/>
+  <circle cx="180" cy="32" r="7" fill="none" stroke="#00e5c8" stroke-width="0.7" opacity="0.4">
+    <animate attributeName="r" values="4;10;4" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.5;0;0.5" dur="2s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- ── SCAN LINE sweeping up the roof face (clipped inside roof ellipse) ── -->
+  <g clip-path="url(#roofClip)">
+    <ellipse cx="180" cy="140" rx="0" ry="0" fill="none" stroke="#00e5c8" stroke-width="1" opacity="0">
+      <!-- animate as a latitude ring sweeping from base to apex -->
+    </ellipse>
+    <line x1="32" y1="140" x2="328" y2="140" stroke="#00e5c8" stroke-width="0.8" opacity="0">
+      <animate attributeName="y1" values="168;32;168" dur="3.5s" repeatCount="indefinite"/>
+      <animate attributeName="y2" values="168;32;168" dur="3.5s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0.55;0" dur="3.5s" repeatCount="indefinite"/>
+    </line>
+  </g>
+
+  <!-- ── LABEL ── -->
+  <text x="180" y="218" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="8" fill="#00a08c" letter-spacing="3" opacity="0.85">TAIPEI DOME  //  臺北大巨蛋</text>
+</svg>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PAGE 0 — BOOT
+// ════════════════════════════════════════════════════════════════
+async function bootPage(){
+  const parent=document.getElementById('bootPanel');
+  const {body}=makePanel('SYSTEM — BOOT SEQUENCE',parent);
+
+  await addLine('RELAY STATION NODE-17 ONLINE','t-cyan-d',body,22);
+  await sleep(140);
+  await addLine('ARCHIVE FILESYSTEM MOUNTED','t-dim',body,20);
+  await sleep(110);
+  await addLine('ENCRYPTION LAYER: AES-256 // VERIFIED','t-dim',body,18);
+  await sleep(160);
+
+  const pw=addEl('div','prog-wrap',body);
+  const pt=addEl('div','prog-track',pw);
+  const pf=addEl('div','prog-fill',pt);
+  const pp=addEl('span','prog-pct',pw); pp.textContent='0%';
+  await animProg(pf,pp,1200);
+  await sleep(200);
+
+  const ok=addEl('p','t-cyan',body); ok.style.marginBottom='14px';
+  ok.textContent='✓ SYSTEM READY';
+  addEl('hr','rule',body);
+
+  await addLine('成員身份驗證完成','t-white',body,22);
+  await sleep(100);
+  await addLine('歡迎回來，aerea51tw 成員。以下為內部觀測日誌。','t-white',body,18);
+  await sleep(300);
+
+  const btn=addEl('button','btn',body); btn.style.margin='20px 0 0';
+  btn.textContent='▶  開啟檔案索引';
+  btn.addEventListener('click',()=>{ goPage('page-index'); indexPage(); });
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PAGE 1 — FILE INDEX
+// ════════════════════════════════════════════════════════════════
+async function indexPage(){
+  const parent=document.getElementById('indexContent');
+  const {body}=makePanel('ARCHIVE — FILE SYSTEM',parent);
+
+  const rl=addEl('p','t-dim',body); rl.style.marginBottom='8px';
+  await tw(rl,'正在讀取觀測紀錄……',28);
+
+  const pw=addEl('div','prog-wrap',body);
+  const pt=addEl('div','prog-track',pw);
+  const pf=addEl('div','prog-fill',pt);
+  const pp=addEl('span','prog-pct',pw); pp.textContent='0%';
+  await animProg(pf,pp,1500);
+  await sleep(300);
+
+  const ok=addEl('p','t-cyan',body); ok.style.margin='8px 0 16px';
+  ok.textContent='✓ COMPLETE — 已找到 2 筆紀錄';
+  addEl('hr','rule',body);
+
+  const idx=addEl('p','',body);
+  idx.style.cssText='font-size:10px;letter-spacing:3px;color:var(--white-faint);margin-bottom:10px';
+  idx.textContent='FILE INDEX — SELECT TO OPEN';
+
+  const f24=addEl('div','file-item',body); f24.id='f24';
+  f24.innerHTML=`<span style="color:var(--cyan-dim)">📁</span><span class="fi-name">Record_2024.log</span><span class="fi-meta">2024.02.19 // 14.2 KB</span><span class="fi-arr">→</span>`;
+
+  const f26=addEl('div','file-item',body); f26.id='f26';
+  f26.style.cssText='opacity:.35;pointer-events:none;cursor:default';
+  f26.innerHTML=`<span style="color:var(--cyan-dim)">📁</span><span class="fi-name">Record_2026.log</span><span class="fi-meta">2026.04.21 // 18.7 KB</span><span class="fi-arr t-faint">🔒</span>`;
+
+  const hint=addEl('p','t-faint',body); hint.style.cssText='font-size:10px;margin-top:8px';
+  hint.textContent='// Record_2026.log 將於閱讀 2024 紀錄後解鎖';
+
+  f24.addEventListener('click',()=>{ f24.classList.add('active'); goPage('page-2024'); page2024(); });
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PAGE 2 — RECORD 2024
+// ════════════════════════════════════════════════════════════════
+async function page2024(){
+  const parent=document.getElementById('content2024');
+  const {body}=makePanel('RECORD_2024.LOG — 觀測日誌',parent);
+
+  await addLine('// LOG ENTRY 001','t-faint',body,18);
+  await addLine('// TIMESTAMP  : 2024.02.19 :: 18:42:09 UTC+8','t-faint',body,16);
+  await addLine('// AUTHORED BY: aerea51tw 全體成員','t-faint',body,16);
+  addEl('hr','rule',body);
+
+  await addLine('2024 年，外星人團隊首次接獲來自','t-white',body,22);
+  const kl=addEl('p','',body); kl.style.marginBottom='3px';
+  kl.innerHTML='來自 <span class="kw-kwangya">KWANGYA</span> 的宇宙訊號，';
+  await sleep(180);
+  await addLine('確認 aespa 即將降臨臺灣座標。','t-white',body,22);
+  await sleep(200);
+  addEl('hr','rule',body);
+
+  await addLine('// SIGNAL ACQUISITION DATA','t-faint',body,16);
+  addHTML(`
+    <div class="e-row"><span class="e-label">SIGNAL RECV</span><div class="e-track" id="e1a"><div class="e-fill"></div></div><span class="e-val" id="e1v">0%</span></div>
+    <div class="e-row"><span class="e-label">MY ENERGY</span><div class="e-track" id="e2a"><div class="e-fill"></div></div><span class="e-val" id="e2v">0%</span></div>
+  `,body);
+  await sleep(100);
+  await Promise.all([
+    animEnergy(document.getElementById('e1a'),document.getElementById('e1v'),72),
+    animEnergy(document.getElementById('e2a'),document.getElementById('e2v'),88,'var(--purple)')
+  ]);
+  await sleep(200);
+  addEl('hr','rule',body);
+
+  await addLine('為了迎接 aespa 的降臨，','t-white',body,22);
+  await addLine('一群喜歡 aespa 的外星人聚集起來，','t-white',body,22);
+  await addLine('組成了名為「aerea51tw」的觀測中繼站。','t-cyan',body,22);
+  await sleep(200);
+  addEl('hr','rule',body);
+
+  await addLine('// MISSION BRIEF','t-faint',body,16);
+  await addLine('我們的任務是接收與整理來自 MY 的喜愛，','t-white',body,20);
+  const ml=addEl('p','',body); ml.style.marginBottom='3px';
+  ml.innerHTML='並將這些能量匯集成能被 <span class="kw-synk">aespa</span> 看見的應援訊號。';
+  await sleep(300);
+  addEl('hr','rule',body);
+
+  await addLine('// MISSION STATUS','t-faint',body,16);
+  await sleep(200);
+  addHTML('<div style="margin:10px 0 14px"><span class="badge b-red kw-failed">SIGNAL TRANSMISSION FAILED</span></div>',body);
+  await sleep(200);
+  await addLine('訊號未能成功完成傳送。','t-red',body,25);
+  await addLine('任務暫時結束。','t-white',body,25);
+  addEl('hr','rule',body);
+
+  await addLine('外星人團隊離開地球，','t-dim',body,22);
+  await addLine('但並未停止觀測。','t-dim',body,22);
+  await addLine('我們選擇在宇宙中持續為aespa應援。','t-white',body,18);
+  addEl('hr','rule',body);
+
+  const en=addEl('p','t-faint',body); en.style.cssText='font-size:10px;letter-spacing:2px;margin-bottom:20px';
+  en.textContent='// END OF RECORD_2024.LOG';
+
+  // Unlock 2026 in index page
+  const f26=document.getElementById('f26');
+  if(f26){
+    f26.style.opacity='1'; f26.style.pointerEvents='auto'; f26.style.cursor='pointer';
+    f26.querySelector('.fi-arr').innerHTML='→';
+    f26.querySelector('.fi-meta').textContent='2026.04.21 // 18.7 KB // DECRYPTED';
+  }
+
+  const nd=addEl('div','',body); nd.style.cssText='border-top:1px solid var(--border);padding-top:16px';
+  const nl=addEl('p','t-cyan',nd); nl.style.cssText='font-size:10px;letter-spacing:3px;margin-bottom:12px';
+  nl.textContent='▼ RECORD_2026.LOG UNLOCKED ▼';
+  const nb=addEl('button','btn',nd); nb.style.margin='0';
+  nb.textContent='▶  開啟 RECORD_2026.LOG';
+  nb.addEventListener('click',()=>{ goPage('page-2026'); page2026(); });
+  if(f26) f26.addEventListener('click',()=>{ goPage('page-2026'); page2026(); });
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PAGE 3 — RECORD 2026
+// ════════════════════════════════════════════════════════════════
+async function page2026(){
+  const parent=document.getElementById('content2026');
+  const {body}=makePanel('RECORD_2026.LOG — 觀測日誌',parent);
+
+  await addLine('// LOG ENTRY 002','t-faint',body,18);
+  await addLine('// TIMESTAMP  : 2026.04.21 :: 23:58:01 UTC+8','t-faint',body,16);
+  await addLine('// AUTHORED BY: aerea51tw 全體成員','t-faint',body,16);
+  await addLine('// STATUS     : RELAY STATION REACTIVATED','t-faint',body,16);
+  addEl('hr','rule',body);
+
+  await addLine('最近，觀測站再次偵測到','t-white',body,22);
+  const kl2=addEl('p','',body); kl2.style.marginBottom='3px';
+  kl2.innerHTML='<span class="kw-kwangya">KWANGYA</span> 訊號異常增幅。';
+  await sleep(200);
+  addEl('hr','rule',body);
+
+  await addLine('// SIGNAL ANALYSIS — 2024 vs 2026','t-faint',body,16);
+  addHTML(`
+    <div class="e-row"><span class="e-label">2024 BASELINE</span><div class="e-track" id="c1t"><div class="e-fill"></div></div><span class="e-val" id="c1v">0%</span></div>
+    <div class="e-row"><span class="e-label">2026 CURRENT</span><div class="e-track" id="c2t"><div class="e-fill"></div></div><span class="e-val" id="c2v">0%</span></div>
+  `,body);
+  await sleep(100);
+  await animEnergy(document.getElementById('c1t'),document.getElementById('c1v'),58,'var(--cyan-dim)');
+  await sleep(150);
+  await animEnergy(document.getElementById('c2t'),document.getElementById('c2v'),94);
+  await sleep(200);
+  addEl('hr','rule',body);
+
+  await addLine('分析結果顯示：','t-dim',body,18);
+  const al=addEl('p','',body); al.style.marginBottom='3px';
+  al.innerHTML='aespa 即將再次降臨 <span class="kw-synk">臺灣座標</span>。';
+  await sleep(150);
+  await addLine('訊號強度高於 2024 年紀錄值。','t-cyan',body,22);
+  await sleep(200);
+
+  const sl=addEl('p','',body); sl.style.margin='10px 0';
+  sl.innerHTML=`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);animation:livePulse 1.4s infinite;vertical-align:middle;margin-right:8px"></span><span class="t-white">MY 能量反應持續上升</span><span class="sig-bars"><span class="sb on" style="height:6px"></span><span class="sb on" style="height:9px"></span><span class="sb on" style="height:13px"></span><span class="sb on" style="height:17px"></span><span class="sb on" style="height:21px"></span></span>`;
+  addEl('hr','rule',body);
+
+  // ── COORDINATE REVEAL ────────────────────────────────────────
+  await addLine('// INITIATING COORDINATE SCAN','t-faint',body,16);
+  await sleep(300);
+
+  const coordBox=addEl('div','coord-box',body);
+  const coordCross=addEl('span','coord-cross',coordBox); coordCross.textContent='⊕';
+
+  // label on its own line
+  const geoLabel=addEl('p','',coordBox);
+  geoLabel.style.cssText='font-size:10px;color:var(--cyan-dim);letter-spacing:2px;margin-bottom:4px';
+  await tw(geoLabel,'地標定位：',20);
+
+  // raw coords on next line
+  const rawLine=addEl('p','',coordBox);
+  rawLine.style.cssText='font-size:14px;color:var(--white);letter-spacing:1px;margin-bottom:10px;padding-left:12px';
+  await tw(rawLine,'25.04235° N,  121.56078° E',16);
+  await sleep(500);
+
+  const scanStatus=addEl('p','',coordBox);
+  scanStatus.style.cssText='font-size:10px;color:var(--white-dim);letter-spacing:2px;margin-bottom:6px';
+  scanStatus.textContent='CROSS-REFERENCING GEO DATABASE...';
+
+  const gpw=addEl('div','prog-wrap',coordBox);
+  const gpt=addEl('div','prog-track',gpw); gpt.style.borderColor='var(--cyan-dim)';
+  const gpf=addEl('div','prog-fill',gpt); gpf.style.background='var(--cyan-dim)';
+  const gpp=addEl('span','prog-pct',gpw); gpp.style.color='var(--cyan-dim)'; gpp.textContent='0%';
+  await animProg(gpf,gpp,2000);
+  await sleep(300);
+
+  scanStatus.textContent='';
+  const cityLine=addEl('p','',coordBox);
+  cityLine.style.cssText='font-size:11px;color:var(--white-dim);letter-spacing:1px;margin:8px 0 4px';
+  await tw(cityLine,'MATCH: 台北市信義區 / Xinyi District, Taipei',16);
+  await sleep(600);
+
+  const narrowing=addEl('p','',coordBox);
+  narrowing.style.cssText='font-size:10px;color:var(--cyan-dim);letter-spacing:2px;margin-bottom:6px';
+  narrowing.textContent='NARROWING TARGET...';
+  coordCross.style.animationDuration='0.5s';
+  await sleep(900);
+  narrowing.textContent=''; coordCross.style.animationDuration='3s';
+
+  const tLabel=addEl('p','',coordBox);
+  tLabel.style.cssText='font-size:10px;color:var(--white-dim);letter-spacing:3px;margin-bottom:4px';
+  tLabel.textContent='TARGET LOCKED:';
+
+  const tName=addEl('div','',coordBox);
+  tName.style.cssText='font-family:"Orbitron",monospace;font-size:clamp(18px,4vw,28px);color:var(--yellow);letter-spacing:5px;font-weight:900;margin:6px 0 10px';
+  await tw(tName,'臺北大巨蛋',80);
+
+  const capLine=addEl('p','',coordBox);
+  capLine.style.cssText='font-size:10px;color:var(--cyan-dim);letter-spacing:1px;margin-bottom:14px';
+  capLine.textContent='STATUS: CONFIRMED  //  SIGNAL LOCK COMPLETE';
+
+  // Dome wireframe SVG — fades in
+  const domeWrap=addEl('div','dome-wrap',coordBox);
+  domeWrap.innerHTML=buildDomeSVG();
+  await sleep(200);
+  domeWrap.classList.add('visible');
+  await sleep(800);
+
+  const bw=addEl('div','',body); bw.style.margin='12px 0 16px';
+  bw.innerHTML=`<span class="badge b-cyan">SIGNAL LOCK CONFIRMED</span><span class="badge b-yellow">TARGET: 臺北大巨蛋</span><span class="badge b-purple">aespa 2026 TAIWAN</span>`;
+  addEl('hr','rule',body);
+
+  await addLine('這次，我們終於等到了。','t-cyan',body,25);
+  await addLine('再次發送訊號的最佳時機已到達。','t-white',body,22);
+  addEl('hr','rule',body);
+
+  const rstLabel=addEl('p','t-faint',body); rstLabel.style.cssText='font-size:10px;letter-spacing:2px;margin-bottom:12px';
+  rstLabel.textContent='// SYSTEM STATUS UPDATE';
+
+  const bigS=addEl('div','big-status t-cyan',body);
+  await tw(bigS,'SYSTEM STATUS: REACTIVATED',35);
+  await sleep(200);
+
+  const rline=addEl('p','t-cyan-d',body);
+  rline.style.cssText='text-align:center;font-size:12px;letter-spacing:3px;margin:8px 0';
+  rline.textContent='aerea51tw 重新啟動中……';
+  await sleep(400);
+
+  const wline=addEl('p','t-faint',body);
+  wline.style.cssText='text-align:center;font-size:12px;letter-spacing:2px;margin-bottom:4px';
+  await tw(wline,'等待下一次訊號回傳。',50);
+  addEl('hr','rule',body);
+
+  const ef=addEl('p','t-faint',body);
+  ef.style.cssText='font-size:10px;letter-spacing:2px;text-align:center;margin-bottom:30px';
+  ef.textContent='END OF FILE // aerea51tw // KWANGYA SIGNAL ARCHIVE';
+
+  parent.scrollTo({ top:parent.scrollHeight, behavior:'smooth' });
+  await sleep(2000);
+  triggerEmergency();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  EMERGENCY TRANSITION
+// ════════════════════════════════════════════════════════════════
+async function triggerEmergency(){
+  const sb=document.getElementById('sb2026');
+  sb.children[0].innerHTML='<span style="color:var(--yellow)">⚠ ANOMALY DETECTED</span>';
+  sb.children[1].innerHTML='<span style="color:var(--yellow)">EXTERNAL READ CONFIRMED</span>';
+  await sleep(600);
+
+  document.body.classList.add('shaking'); await sleep(200); document.body.classList.remove('shaking');
+  await sleep(300);
+
+  sb.children[0].innerHTML='<span style="color:var(--red);animation:flicker 0.8s infinite">!! UNAUTHORIZED ACCESS !!</span>';
+  sb.children[1].innerHTML='<span style="color:var(--red)">LOCKDOWN INITIATING</span>';
+  await sleep(700);
+
+  document.body.classList.add('shaking'); await sleep(250); document.body.classList.remove('shaking');
+  await sleep(200);
+
+  document.body.classList.add('screen-tearing');
+  await sleep(350);
+  goPage('page-end');
+  document.body.classList.remove('screen-tearing');
+  endPage();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PAGE 4 — ENDING
+// ════════════════════════════════════════════════════════════════
+async function endPage(){
+  const parent=document.getElementById('contentEnd');
+
+  // Emergency panel
+  const epanel=addEl('div','',parent);
+  epanel.style.cssText='border:1px solid var(--red);background:#0a0000;padding:20px;margin-bottom:20px';
+
+  // Header — single clean line, no overflow
+  const ehead=addEl('div','',epanel);
+  ehead.style.cssText='font-size:10px;letter-spacing:2px;color:var(--red);margin-bottom:14px;animation:flicker .4s step-end infinite;line-height:1.5';
+  ehead.innerHTML='▓&nbsp; SECURITY BREACH<br>▓&nbsp; EMERGENCY PROTOCOL INITIATED';
+
+  async function eLine(text,cls,speed=16){
+    const p=addEl('p',cls,epanel); p.style.marginBottom='5px';
+    await tw(p,text,speed);
+  }
+
+  // System log lines — readable colours
+  await eLine('[SYSTEM]  偵測到未授權使用者完整存取機密檔案','t-red');
+  await eLine('[SYSTEM]  使用者並非來自 aerea51tw 組織','t-red');
+  await eLine('[SYSTEM]  IP ORIGIN   : UNKNOWN — TAIWAN SECTOR','t-white');
+  await eLine('[SYSTEM]  ACCESS LEVEL: FULL — 所有機密內容已被讀取','t-red');
+  await sleep(200);
+  addEl('hr','rule',epanel);
+
+  await eLine('[PROTOCOL] 緊急關閉程序已啟動','t-yellow');
+  await eLine('[PROTOCOL] 正在抹除本次存取紀錄…','t-yellow');
+  await eLine('[PROTOCOL] 執行記憶體覆寫程序中…','t-yellow');
+  await sleep(200);
+
+  const wpw=addEl('div','prog-wrap',epanel);
+  const wpt=addEl('div','prog-track',wpw); wpt.style.borderColor='var(--red)';
+  const wpf=addEl('div','prog-fill',wpt); wpf.style.background='var(--red)';
+  const wpp=addEl('span','prog-pct',wpw); wpp.style.color='var(--red)'; wpp.textContent='0%';
+  await animProg(wpf,wpp,1800);
+  await sleep(200);
+
+  await eLine('[PROTOCOL] ✓ 存取紀錄清除完畢','t-white');
+  await sleep(200);
+  await eLine('[PROTOCOL] 終止連線中…','t-yellow');
+  await sleep(300);
+  addEl('hr','rule',epanel);
+
+  // 3-second countdown
+  const cdl=addEl('p','',epanel);
+  cdl.style.cssText='font-size:10px;letter-spacing:3px;color:var(--white-dim);margin-bottom:6px';
+  cdl.textContent='CONNECTION TERMINATING IN:';
+
+  const cd=addEl('div','',epanel);
+  cd.style.cssText='font-family:"Orbitron",monospace;font-size:52px;color:var(--red);text-align:center;letter-spacing:14px;margin:4px 0 10px';
+
+  for(let i=3;i>=0;i--){
+    cd.textContent=String(i);
+    if(i<=1){ cd.classList.add('glitch-host'); cd.setAttribute('data-g',String(i)); glitch(cd,200); }
+    await sleep(900);
+  }
+
+  // Hide emergency, show final message
+  epanel.style.display='none';
+
+  const finalWrap=addEl('div','',parent);
+  finalWrap.style.cssText='display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;padding:20px';
+
+  const sep1=addEl('p','',finalWrap);
+  sep1.style.cssText='font-size:10px;color:var(--white-dim);letter-spacing:4px;margin-bottom:24px';
+  sep1.textContent='── aerea51tw TRANSMISSION ENDED ──';
+
+  const msg=addEl('div','',finalWrap);
+  msg.style.cssText='font-size:14px;color:var(--white);line-height:2.1;margin-bottom:30px';
+  msg.innerHTML=`你不該看到這些的。<br>但既然看到了——<br><span style="color:var(--cyan)">歡迎成為知道這個秘密的台灣 MY。</span>`;
+
+  const link=addEl('a','',finalWrap);
+  link.href='https://linktr.ee/aerea51tw?utm_source=linktree_profile_share&ltsid=e4e1ca84-9003-41ef-bd5f-50df44916e93';
+  link.target='_blank'; link.rel='noopener noreferrer';
+  link.style.cssText='display:inline-block;padding:14px 44px;background:transparent;border:1px solid var(--cyan);color:var(--cyan);font-family:"Share Tech Mono",monospace;font-size:12px;letter-spacing:4px;text-decoration:none;margin-bottom:20px;-webkit-tap-highlight-color:transparent;transition:background .15s';
+  link.textContent='▶  前往 AEREA51TW';
+  link.addEventListener('mouseover',()=>link.style.background='var(--cyan-faint)');
+  link.addEventListener('mouseout',()=>link.style.background='transparent');
+
+  const note=addEl('p','',finalWrap);
+  note.style.cssText='font-size:10px;color:var(--white-dim);letter-spacing:2px';
+  note.textContent='aerea51tw // KWANGYA SIGNAL // 2026';
+
+  parent.scrollTo({top:parent.scrollHeight,behavior:'smooth'});
+}
+
+// ── START ────────────────────────────────────────────────────────
+bootPage();
+</script>
+</body>
+</html>
