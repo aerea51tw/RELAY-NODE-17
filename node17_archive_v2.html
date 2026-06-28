@@ -354,7 +354,7 @@ body::after {
   <div class="page-footer">
     <span>aerea51tw // CLASSIFIED</span>
     <span id="sid0">SESSION: ──────────────</span>
-    <span>NODE-17 // KWANGYA</span>
+    <span id="visit-counter">SIGNAL ──────</span>
   </div>
 </div>
 
@@ -1041,6 +1041,22 @@ async function endPage(){
 
 // ── START ────────────────────────────────────────────────────────
 bootPage();
+(async () => {
+  try {
+    const res = await fetch(
+      'https://api.counterapi.dev/v1/aerea51tw/kwangya-signal/hit'
+    );
+    const data = await res.json();
+    const count = data.count ?? '──';
+    const padded = String(count).padStart(6, '0');
+    const el = document.getElementById('visit-counter');
+    if (el) el.textContent = `SIGNAL ${padded}`;
+  } catch (e) {
+    const el = document.getElementById('visit-counter');
+    if (el) el.textContent = 'SIGNAL ──────';
+  }
+})();
+
 </script>
 </body>
 </html>
