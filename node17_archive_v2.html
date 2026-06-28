@@ -354,7 +354,7 @@ body::after {
   <div class="page-footer">
     <span>aerea51tw // CLASSIFIED</span>
     <span id="sid0">SESSION: ──────────────</span>
-    <span id="visit-counter">SIGNAL ──────</span>
+    <span>SIGNAL <span id="busuanzi_value_site_pv">──────</span></span>
   </div>
 </div>
 
@@ -1041,24 +1041,7 @@ async function endPage(){
 
 // ── START ────────────────────────────────────────────────────────
 bootPage();
-(async () => {
-  try {
-    const res = await fetch(
-      'https://hits.sh/aerea51tw.github.io/RELAY-NODE-17/node17_archive_v2.html.json'
-    );
-    const data = await res.json();
-    const count = data.total ?? '──';
-    const padded = String(count).padStart(6, '0');
-    const el = document.getElementById('visit-counter');
-    if (el) el.textContent = `SIGNAL ${padded}`;
-  } catch (e) {
-    const el = document.getElementById('visit-counter');
-    if (el) el.textContent = 'SIGNAL ──────';
-  }
-})();
-
-
-
 </script>
+  <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
 </body>
 </html>
