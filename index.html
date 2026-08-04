@@ -1006,6 +1006,8 @@ const MATERIALS = {
       {src:'assets/ticket-qr.jpg'},
     ],
     printCode: 'ASUSUMX7I6QJX',
+    // revealed:false → 標題正常顯示（不灰階），但不能點開看內容，等公告發出後把這改成 true 就會開放點閱。
+    revealed: false,
   },
   story: {
     // 註：這裡的標題文字存在 I18N.ui.materialsStoryLabel（每語言一份，如「IG 限動模板 STORY TEMPLATE」）
@@ -1017,6 +1019,7 @@ const MATERIALS = {
 let openMatGroups = new Set();
 function toggleMaterialGroup(key){
   if(MATERIALS[key].locked) return;
+  if(MATERIALS[key].revealed === false) return;
   if(openMatGroups.has(key)) openMatGroups.delete(key); else openMatGroups.add(key);
   renderMaterials();
 }
@@ -1032,6 +1035,15 @@ function renderMaterials(){
         <div class="panel-header">
           <span class="pd pd-r"></span><span class="pd pd-y"></span><span class="pd pd-g"></span>
           <span style="margin-left:6px;flex:1">${u.locked}</span>
+        </div>
+      </div>`;
+    }
+    if(group.revealed === false){
+      return `
+      <div class="panel">
+        <div class="panel-header">
+          <span class="pd pd-r"></span><span class="pd pd-y"></span><span class="pd pd-g"></span>
+          <span style="margin-left:6px;flex:1">${label}</span>
         </div>
       </div>`;
     }
