@@ -1006,8 +1006,6 @@ const MATERIALS = {
       {src:'assets/ticket-qr.jpg'},
     ],
     printCode: 'ASUSUMX7I6QJX',
-    // revealed:false → 標題正常顯示（不灰階），但不能點開看內容，等公告發出後把這改成 true 就會開放點閱。
-    revealed: false,
   },
   story: {
     // 註：這裡的標題文字存在 I18N.ui.materialsStoryLabel（每語言一份，如「IG 限動模板 STORY TEMPLATE」）
@@ -1019,7 +1017,6 @@ const MATERIALS = {
 let openMatGroups = new Set();
 function toggleMaterialGroup(key){
   if(MATERIALS[key].locked) return;
-  if(MATERIALS[key].revealed === false) return;
   if(openMatGroups.has(key)) openMatGroups.delete(key); else openMatGroups.add(key);
   renderMaterials();
 }
@@ -1035,15 +1032,6 @@ function renderMaterials(){
         <div class="panel-header">
           <span class="pd pd-r"></span><span class="pd pd-y"></span><span class="pd pd-g"></span>
           <span style="margin-left:6px;flex:1">${u.locked}</span>
-        </div>
-      </div>`;
-    }
-    if(group.revealed === false){
-      return `
-      <div class="panel">
-        <div class="panel-header">
-          <span class="pd pd-r"></span><span class="pd pd-y"></span><span class="pd pd-g"></span>
-          <span style="margin-left:6px;flex:1">${label}</span>
         </div>
       </div>`;
     }
@@ -1182,7 +1170,7 @@ const ENTRY_IDS = { flag: 'entry.1580409871', name: 'entry.404127694', message: 
    之後想到還有哪些字詞想擋，直接加進這個陣列裡就可以了。 */
 const BAD_WORDS = [
   // 常見髒話／辱罵（中文）
-  '幹你娘', '幹你老師', '白痴', '智障', '賤人', '婊子', '死變態', '去死', '賤貨','四小媽','四秒表','四秒錶','牛逼','哇操','哇草','柳智敏','智敏','金玟庭','玟庭','內永繪里','繪里',
+  '幹你娘', '幹你老師', '白痴', '智障', '賤人', '婊子', '死變態', '去死', '賤貨',
   // common profanity (English)
   'fuck', 'shit', 'bitch', 'asshole', 'cunt', 'dick', 'whore', 'slut',
   // 造謠／黃謠相關
