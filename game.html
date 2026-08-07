@@ -1,0 +1,1911 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AEREA51TW — Alien Blaster</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:#000010;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;overflow-x:hidden}
+#wrap{position:relative;width:100%;max-width:420px;margin:0 auto;background:#000010}
+#gc{display:block;width:100%;touch-action:none;image-rendering:pixelated;cursor:crosshair}
+#ov{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,12,0.94);z-index:10;overflow-y:auto;padding:16px 0}
+#ov h2{font-size:20px;letter-spacing:3px;color:#00ff88;margin-bottom:2px;font-family:'Courier New',monospace}
+#ov .a51{font-size:15px;letter-spacing:6px;color:#fff;font-weight:bold;margin-bottom:10px;background:#00aa44;padding:5px 20px;font-family:'Courier New',monospace}
+#ov .sub{font-size:11px;color:#66ffaa;margin-bottom:12px;text-align:center;line-height:2.1;padding:8px 18px;border:1px solid rgba(0,255,136,0.35);background:rgba(0,255,136,0.07);font-family:'Courier New',monospace}
+#ov .best{font-size:12px;color:#ffd700;margin-bottom:10px;font-family:'Courier New',monospace;letter-spacing:2px}
+.ov-btn{background:#fff;border:3px solid #888;color:#000;padding:11px 36px;font-size:14px;font-weight:bold;cursor:pointer;letter-spacing:3px;font-family:'Courier New',monospace;display:block;margin-bottom:8px;width:240px;text-align:center}
+.ov-btn:hover{background:#00ff88;border-color:#00cc66;color:#002211}
+.ov-btn.today{background:#fff;border-color:#ffd700;color:#664400}
+.ov-btn.today:hover{background:#ffd700;color:#000}
+.ov-btn.rec{background:transparent;border-color:#666;color:#aaa}
+.ov-btn.rec:hover{background:#333;color:#fff}
+.challenge-page{width:100%;max-width:380px;padding:0 16px;font-family:'Courier New',monospace}
+.challenge-title{font-size:16px;color:#00ff88;letter-spacing:2px;margin-bottom:4px;text-align:center}
+.challenge-emoji{font-size:28px;text-align:center;margin-bottom:6px}
+.challenge-date{font-size:10px;color:#556655;text-align:center;margin-bottom:10px}
+.challenge-body{font-size:11px;color:#88ffaa;line-height:1.9;padding:10px 12px;border:1px solid rgba(0,255,136,0.25);background:rgba(0,255,136,0.05);white-space:pre-line;margin-bottom:12px}
+.challenge-hud{font-size:10px;color:#556655;text-align:center;margin-bottom:14px}
+.rest-page{width:100%;max-width:380px;padding:0 16px;font-family:'Courier New',monospace}
+.rest-body{font-size:10px;color:#66ff88;line-height:1.9;padding:10px 12px;border:1px solid rgba(0,255,100,0.2);background:rgba(0,20,0,0.4);white-space:pre}
+.record-page{width:100%;max-width:380px;padding:0 16px;font-family:'Courier New',monospace}
+.record-title{font-size:13px;color:#00ffcc;letter-spacing:3px;margin-bottom:12px;text-align:center}
+.record-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:11px}
+.record-name{color:#88ffaa}.record-locked{color:#334433}
+.record-score{color:#ffd700}.record-zero{color:#445544}
+.record-section{font-size:10px;color:#445544;letter-spacing:2px;margin:10px 0 4px}
+</style>
+</head>
+<body>
+<div id="wrap">
+<canvas id="gc" width="420" height="580"></canvas>
+<div id="ov">
+  <h2>★ ALIEN BLASTER ★</h2>
+  <div class="a51" id="a51tag" style="cursor:pointer;user-select:none">AEREA51TW</div>
+  <div class="best" id="bestDisp">最佳紀錄：0</div>
+  <div class="sub">按住畫面 → 持續射擊 ／ 拖動 → 移動<br>集滿15殺 → 左下角 P.O.S 出現<br>200分 → 檸檬王降臨<br>2000分 → 黑曼巴覺醒</div>
+  <button id="btnNormal" class="ov-btn">▶ 一般模式 ◀</button>
+  <button id="btnChallenge" class="ov-btn today">⚡ 今日挑戰 ◀</button>
+  <div style="font-size:10px;color:#665500;margin-bottom:8px;font-family:'Courier New',monospace" id="todayLabel"></div>
+  <button id="btnRecord" class="ov-btn rec">📊 過往紀錄</button>
+</div>
+</div>
+<script>
+const cv=document.getElementById('gc'),cx=cv.getContext('2d');
+const W=420,H=580;
+cx.imageSmoothingEnabled=false;
+const P=3;
+function snap(n){return Math.round(n/P)*P;}
+function pr(x,y,w,h,c){if(w<P||h<P)return;cx.fillStyle=c;cx.fillRect(snap(x),snap(y),snap(Math.max(P,w)),snap(Math.max(P,h)));}
+
+let state='idle',fr=0,score=0,lives=3;
+let bestScore=parseInt(localStorage.getItem('aerea51tw_best')||'0');
+let ship,bullets,enemies,bossBullets,particles,stars,powerups;
+let dragStart=null,touchMoved=false;
+let spawnTimer=0,spawnIv=90;
+let lemonBossActive=false,mambaActive=false,lemonBoss=null,mamba=null;
+let lemonBossCount=0;   // 檸檬王出現次數
+let mambaKillCount=0;   // 黑曼巴被擊殺次數
+let shakeTimer=0,superMode=0;
+// ── 自動射擊 ──────────────────────────────────────────────
+let autoFireTimer=0;
+const AUTO_FIRE_INTERVAL=18;
+const POS_KILL_NEEDED=15;
+// ── P.O.S 系統 ────────────────────────────────────────────
+let posKillCount=0, posReady=false, posActive=false, posTimer=0;
+let autoFireOn=false;
+
+function triggerPOS(){
+  if(!posReady)return;
+  posReady=false;posActive=true;posTimer=90;posKillCount=0;
+  shakeTimer=12;
+  let killed=0;
+  enemies.forEach(e=>{
+    spawnParticles(e.x,e.y,'#ff44ff',10);
+    score+=(e.type==='snake'?25:12); // 不套用 combo 倍率，不觸發 combo
+    killed++;
+  });
+  enemies=[];
+  // POS 不觸發 combo 也不升子彈等級，只加分
+  if(lemonBoss){lemonBoss.hp=Math.max(1,lemonBoss.hp-Math.ceil(lemonBoss.maxHp/4));lemonBoss.hit=20;}
+  if(mamba){mamba.hp=Math.max(1,mamba.hp-Math.ceil(mamba.maxHp/4));mamba.hit=20;}
+}
+
+// ── 今日挑戰系統 ─────────────────────────────────────────
+const CHALLENGE_DAYS=[
+  {id:'karina', name:"Karina's Challenge Day", emoji:'🥺',
+   date:'事件日期：2025.05.29',
+   body:`2025年5月29日，Karina 在活動上親口說出了「aespo」這個神奇的詞。\n現場所有人陷入沉默——\n「我們是 aespa，不是 aespo 啦！」（全場笑爛）\n直到今天，沒有人知道 aespo 是什麼。\n也許是外星語。`,
+   hud:'aespo...aespo???', enemy:'aespo', bullet:'heart_blue'},
+  {id:'giselle', name:"Giselle's Challenge Day", emoji:'🌸',
+   date:'事件日期：2024.08.09',
+   body:`演唱會進行中，一隻蜻蜓突然降落舞台。\nGiselle 當場尖叫、在舞台上狂奔，\n並宣告：「我想回家。」\n蜻蜓沒有離場，Giselle 繼續表演。\n這是她迄今最勇敢的一次(?)`,
+   hud:'我想要回家～(怕', enemy:'dragonfly', bullet:'moon_yellow'},
+  {id:'winter', name:"Winter's Challenge Day", emoji:'☃️',
+   date:'事件日期：2024.10.20',
+   body:`舞台乾冰效果全開的那一刻，\nWinter 的頭髮緩緩飄起。\n靜電選中了她。\n「拔絲冬冬」就此誕生，永載史冊。\n她說這叫氛圍感。我們說這叫天選之人。`,
+   hud:'拔絲...冬冬??!!', enemy:'yam', bullet:'star_yellow'},
+  {id:'ningning', name:"Ningning's Challenge Day", emoji:'🐯',
+   date:'事件日期：2024.08.11',
+   body:`演唱會安可環節，\n台下粉絲自發唱起應援曲，\naespa 四人靜靜聆聽了整整五分鐘。\n最後 Ningning 開口：\n「聽了大家五分鐘才聽出來⋯⋯\n感謝大家美麗的參與～」\n她說這是讚美。我們選擇相信她。`,
+   hud:'感謝大家美麗的參與', enemy:'note', bullet:'butterfly_purple'},
+  {id:'ae', name:'Be my æ Day', emoji:'❤️🧡💛💚💙🩵💜',
+   date:'無特定事件',
+   body:`ae 的力量滲透了今天。\n但沒關係——\naespa 四人一直都在，\nMY 也一直都在。\n\n我們在同一個宇宙裡，\n是彼此最珍貴的朋友。\n\n一起打倒黑曼巴吧 🖤`,
+   hud:'Be / my / æ', enemy:'snake_only', bullet:'ae_text'},
+  {id:'lemon', name:'Lemon Day~', emoji:'🍋',
+   date:'無特定事件',
+   body:`今天是 Lemonade 日。\n檸檬王的親戚們全員出動，\n大的小的圓的扁的，全部都是檸檬。\n沒有別的。就是檸檬。\n為什麼？因為今天是 Lemon Day。`,
+   hud:'Lemon Day～🍋', enemy:'mini_lemon', bullet:'note_green'},
+  {id:'kwangya', name:'Beat KWANGYA', emoji:'🏢',
+   date:'一個月出現一次',
+   body:`KWANGYA 今天開放入侵。\nSM 大樓的燈還亮著，\n合約還沒有到期，\n但你已經在這裡了。\n打倒大樓，帶她們回家。`,
+   hud:'BEAT KWANGYA 🔥', enemy:'sm_building', bullet:'fire'},
+];
+const REST_DAY={id:'rest', name:'公休日', emoji:'📅👽'};
+
+// Loop 排程（localStorage 存狀態）
+let todayChallenge=null; // 今天的挑戰物件
+let challengeMode=false; // 是否在今日挑戰模式
+
+function getTodayChallenge(){
+  // 用日期當種子決定今天的挑戰
+  const now=new Date();
+  const dayKey=`${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+  const stored=localStorage.getItem('aerea51tw_loop');
+  let loopData=stored?JSON.parse(stored):{loop:[],idx:0,lastDay:'',kwangyaMonth:-1};
+
+  // 如果今天已計算過，直接返回
+  if(loopData.lastDay===dayKey){
+    const cid=loopData.loop[loopData.idx];
+    if(cid==='rest') return REST_DAY;
+    if(cid==='kwangya') return CHALLENGE_DAYS[6];
+    return CHALLENGE_DAYS.find(d=>d.id===cid)||REST_DAY;
+  }
+
+  // 新的一天，推進 idx
+  if(loopData.loop.length===0||loopData.idx>=loopData.loop.length-1){
+    // 建立新 Loop（6主題日 + 1公休日，共7天）
+    let pool=['karina','giselle','winter','ningning','ae','lemon'];
+    // 洗牌
+    for(let i=pool.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];
+    }
+    // 確保不跟上一個 loop 結尾重複
+    if(loopData.loop.length>0){
+      const lastItem=loopData.loop[loopData.loop.length-1];
+      if(pool[0]===lastItem){const t=pool[0];pool[0]=pool[1];pool[1]=t;}
+    }
+    // 插入公休日（位置3）
+    pool.splice(3,0,'rest');
+    // Beat KWANGYA：本月已出現過就不插，否則取代公休日
+    const thisMonth=now.getMonth();
+    if(loopData.kwangyaMonth!==thisMonth){
+      pool[3]='kwangya';
+      loopData.kwangyaMonth=thisMonth;
+    }
+    loopData.loop=pool;
+    loopData.idx=0;
+  } else {
+    loopData.idx++;
+  }
+  loopData.lastDay=dayKey;
+  localStorage.setItem('aerea51tw_loop',JSON.stringify(loopData));
+
+  const cid=loopData.loop[loopData.idx];
+  if(cid==='rest') return REST_DAY;
+  if(cid==='kwangya') return CHALLENGE_DAYS[6];
+  return CHALLENGE_DAYS.find(d=>d.id===cid)||REST_DAY;
+}
+
+function getChallengeRecord(id){
+  const v=localStorage.getItem('aerea51tw_ch_'+id);
+  if(v===null) return null;       // 從未玩過
+  return parseInt(v);              // 玩過（0表示玩過但0分）
+}
+function saveChallengeRecord(id,s){
+  const cur=getChallengeRecord(id);
+  if(cur===null||s>cur) localStorage.setItem('aerea51tw_ch_'+id,s);
+}
+let bulletLevel=0;
+let bulletExp=0;
+let spreadLevel=0; // 子彈擴散等級 0=1束 1=2束 2=3束
+// LV0→LV1→...→LV9，擊殺數需求遞增
+const bulletExpNeeded=[5,8,12,18,35,50,80,100,135];
+let sweepMode=0,sweepCount=0;
+// ── 連殺系統 ─────────────────────────────────────────────
+let combo=0;          // 目前連殺數
+let comboTimer=0;     // 連殺保持時間（幀）
+let comboMult=1;      // 目前倍率
+let comboFlashMsg=''; // 顯示的連殺文字
+let comboFlashTimer=0;
+// ── 彩蛋系統 ─────────────────────────────────────────────
+let eggScore51Done=false;
+let killCount={heart:0,star:0,moon:0,butterfly:0};
+let eggUnlocked={heart:false,star:false,moon:false,butterfly:false};
+let eggAllCollected=false,eggFinalDone=false,eggFinalKills=0,eggAnyKillAfter=0;
+let eggMsg='',eggMsgTimer=0,eggMsgColor='#00ffaa';
+let eggFlash='',eggFlashTimer=0,eggFlashColor='#00ffaa';
+let alienClickCount=0;
+let secretModeActive=false,secretModeEverActive=false;
+let topEdgeTimer=0,topEggDone=false;
+
+function hud(){
+  cx.fillStyle='rgba(0,0,10,0.88)';cx.fillRect(0,0,W,32);
+  cx.font='bold 11px "Courier New"';
+  // ── 子彈等級視覺圖示（10級）──
+  const dispMap10=[
+    {w:4, h:10,col:'#00ff88', count:1},           // LV0 小1
+    {w:4, h:10,col:'#00ff88', count:3},           // LV1 小3
+    {w:6, h:14,col:'#00ffcc', count:1},           // LV2 中1
+    {w:6, h:14,col:'#00ffcc', count:3},           // LV3 中3
+    {w:8, h:18,col:'#ffdd00', count:1},           // LV4 大1
+    {w:8, h:18,col:'#ffdd00', count:3},           // LV5 大3
+    {w:11,h:22,col:'#ff8800', count:1},           // LV6 巨1
+    {w:11,h:22,col:'#ff8800', count:3},           // LV7 巨3
+    {w:2, h:22,col:'#88aaff', count:1,laser:true},// LV8 雷射（細）
+    {w:4, h:22,col:'#cc88ff', count:1,laser:true},// LV9 雷射（粗）MAX
+  ];
+  const lv=Math.min(bulletLevel,9);
+  const bs=dispMap10[lv];
+  let startX=5, iconY=27, gap=bs.w+2;
+  for(let i=0;i<bs.count;i++){
+    let bx=startX+i*(bs.w+gap);
+    cx.fillStyle=bs.col;
+    cx.fillRect(bx,iconY-bs.h,bs.w,bs.h);
+    cx.fillStyle='#ffffff';
+    cx.fillRect(bx,iconY-bs.h,bs.w>3?2:1,Math.round(bs.h*0.45));
+  }
+  if(bs.laser){
+    cx.globalAlpha=0.22;cx.fillStyle=bs.col;
+    for(let i=0;i<bs.count;i++){let bx=startX+i*(bs.w+gap);cx.fillRect(bx-2,iconY-bs.h-2,bs.w+4,bs.h+4);}
+    cx.globalAlpha=1;
+  }
+  const lvCols10=['#00ff88','#00ff88','#00ffcc','#00ffcc','#ffdd00','#ffdd00','#ff8800','#ff8800','#ff44ff','#ff88ff'];
+  let lc=lvCols10[lv];
+  let barX=startX+bs.count*(bs.w+gap)+4, barY=6, barW=58, barH=6;
+  cx.fillStyle='#112211'; cx.fillRect(barX,barY,barW,barH);
+  if(lv<9){
+    let pct=bulletExp/(bulletExpNeeded[lv]||5);
+    cx.fillStyle=lc; cx.fillRect(barX,barY,Math.round(barW*pct),barH);
+    cx.strokeStyle=lc; cx.lineWidth=1; cx.strokeRect(barX,barY,barW,barH);
+  } else {
+    cx.fillStyle=fr%20<10?'#ff88ff':'#ffccff'; cx.fillRect(barX,barY,barW,barH);
+    cx.font='bold 7px "Courier New"';cx.fillStyle='#330033';cx.textAlign='center';
+    cx.fillText('MAX',barX+barW/2,barY+5);cx.textAlign='left';cx.font='bold 11px "Courier New"';
+  }
+  cx.fillText('SCR:'+score,W/2-36,18);
+  if(comboMult>1){
+    let mc=['','','#ffff44','#ffaa00','#ff6600','#ff2200','#ff00ff'][Math.min(comboMult,6)];
+    cx.fillStyle=mc||'#ff00ff';
+    cx.fillText('×'+comboMult,W/2+38,18);
+  }
+  cx.fillStyle='#ff4488'; cx.fillText('HP:'+lives,W-54,18);
+  if(sweepMode>0){
+    cx.fillStyle='rgba(255,0,0,0.12)'; cx.fillRect(0,32,W,H-32);
+    cx.font='bold 11px "Courier New"'; cx.fillStyle='#ff4444';
+    cx.textAlign='center';
+    cx.fillText('★ SUPER MODE — SWEEP ×'+sweepCount+' ★',W/2,H-8);
+    cx.textAlign='left';
+  } else if(superMode>0){
+    cx.fillStyle='rgba(255,220,0,0.10)'; cx.fillRect(0,32,W,H-32);
+    cx.font='bold 11px "Courier New"'; cx.fillStyle='#ffee00';
+    cx.textAlign='center';
+    cx.fillText('★ SUPER MODE '+(Math.ceil(superMode/60))+'s ★',W/2,H-8);
+    cx.textAlign='left';
+  }
+  cx.font='bold 9px "Courier New"';
+  if(challengeMode&&todayChallenge&&todayChallenge.hud){
+    cx.fillStyle='#ffdd88';
+    cx.textAlign='center';
+    cx.fillText(todayChallenge.hud,W/2,H-20);
+    cx.textAlign='left';
+  } else {
+    cx.fillStyle='#00cc66';
+    cx.fillText('AEREA51TW',W/2-34,H-20);
+  }
+}
+
+// ── IP 飛碟造型 ───────────────────────────────────────────
+// 共用底盤
+function drawCatDisk(x,y,glowCol){
+  pr(x-30,y+8,60,6,'#223355');pr(x-32,y+10,64,5,'#2244aa');pr(x-28,y+13,56,4,'#1a2288');
+  let lc=['#00ffff','#ffff00','#00ffff','#ff44ff','#00ffff'];
+  for(let i=0;i<5;i++){pr(x-18+i*9,y+9,5,4,lc[i]);}
+  pr(x-18,y+2,36,7,'#334466');pr(x-20,y+3,40,6,'#3355aa');
+  let ef=fr%10<5;
+  pr(x-3,y+17,6,ef?8:6,glowCol||'#00ff88');
+  pr(x-2,y+17,4,ef?6:4,'#aaffcc');
+  pr(x-1,y+17,2,ef?4:3,'#ffffff');
+}
+// 圓形身體
+function drawCatBody(x,y,bodyCol,earCol,faceCol){
+  for(let px2=-18;px2<=18;px2+=P)
+    for(let py2=-18;py2<=18;py2+=P)
+      if(px2*px2+py2*py2<=18*18){cx.fillStyle=bodyCol;cx.fillRect(snap(x+px2),snap(y+py2),P,P);}
+  for(let px2=-11;px2<=11;px2+=P)
+    for(let py2=-11;py2<=11;py2+=P)
+      if(px2*px2*1.1+py2*py2<=11*11){cx.fillStyle=faceCol;cx.fillRect(snap(x+px2),snap(y+py2),P,P);}
+  pr(x-18,y-14,8,8,earCol);pr(x-16,y-12,5,6,bodyCol);
+  pr(x+10,y-14,8,8,earCol);pr(x+11,y-12,5,6,bodyCol);
+}
+// 統一表情：X眼 + 吐舌（顏色可自訂）
+function drawXFace(x,y,eyeCol,noseCol,tongueCol){
+  // 品紅眉毛
+  pr(x-9,y-9,5,2,'#ff44aa');pr(x+4,y-9,5,2,'#ff44aa');
+  // 左X眼
+  pr(x-9,y-7,3,3,eyeCol);pr(x-7,y-5,3,3,eyeCol);
+  pr(x-9,y-5,3,3,eyeCol);pr(x-7,y-7,3,3,eyeCol);
+  // 右X眼
+  pr(x+4,y-7,3,3,eyeCol);pr(x+6,y-5,3,3,eyeCol);
+  pr(x+4,y-5,3,3,eyeCol);pr(x+6,y-7,3,3,eyeCol);
+  // 腮紅（橢圓長條，眼睛外側下方）
+  cx.fillStyle='#ffaabb';
+  cx.beginPath();cx.ellipse(snap(x-8),snap(y+0),4,2,0,0,Math.PI*2);cx.fill();
+  cx.beginPath();cx.ellipse(snap(x+8),snap(y+0),4,2,0,0,Math.PI*2);cx.fill();
+  // 鼻
+  pr(x-1,y,2,2,noseCol);
+  // 嘴+舌
+  pr(x-3,y+3,6,2,eyeCol);
+  pr(x-1,y+4,2,4,tongueCol);
+}
+
+function drawCatIP(x,y,bodyCol,earCol,faceCol,eyeCol,noseCol,tongueCol,glowCol){
+  drawCatDisk(x,y,glowCol);
+  drawCatBody(x,y,bodyCol,earCol,faceCol);
+  drawXFace(x,y,eyeCol,noseCol,tongueCol);
+}
+
+// 各成員IP（統一表情，顏色照娃娃）
+function drawKarinaIP(x,y){
+  // 藍灰色（圖一左一）
+  drawCatIP(x,y,'#a8bcd4','#7a9bbf','#d8e8f8','#3a5a7a','#5a7a9a','#aacce8','#aaddff');
+}
+function drawGiselleIP(x,y){
+  // 深灰色（圖一左二）
+  drawCatIP(x,y,'#7a7a8a','#555566','#ccccdd','#334455','#445566','#9999aa','#aaaacc');
+}
+function drawWinterIP(x,y){
+  // 白/極淡藍（圖一左三）
+  drawCatIP(x,y,'#e8eef8','#b8c8e0','#ffffff','#4466aa','#6688bb','#bbccee','#88aaff');
+}
+function drawNingningIP(x,y){
+  // 紫色（圖一右一）
+  drawCatIP(x,y,'#c088e0','#9966bb','#ead8f8','#6633aa','#8844bb','#cc88ee','#dd88ff');
+}
+
+// 小貓圓體（不含底盤，用於 2×2 群組）
+function drawMiniCat(x,y,bodyCol,earCol,faceCol,eyeCol,noseCol,tongueCol){
+  let r=13;
+  for(let px2=-r;px2<=r;px2+=P)
+    for(let py2=-r;py2<=r;py2+=P)
+      if(px2*px2+py2*py2<=r*r){cx.fillStyle=bodyCol;cx.fillRect(snap(x+px2),snap(y+py2),P,P);}
+  for(let px2=-8;px2<=8;px2+=P)
+    for(let py2=-8;py2<=8;py2+=P)
+      if(px2*px2*1.1+py2*py2<=8*8){cx.fillStyle=faceCol;cx.fillRect(snap(x+px2),snap(y+py2),P,P);}
+  pr(x-13,y-10,6,6,earCol);pr(x-11,y-9,4,5,bodyCol);
+  pr(x+7,y-10,6,6,earCol);pr(x+8,y-9,4,5,bodyCol);
+  // X眼（縮小版）
+  pr(x-7,y-5,2,2,eyeCol);pr(x-5,y-3,2,2,eyeCol);
+  pr(x-7,y-3,2,2,eyeCol);pr(x-5,y-5,2,2,eyeCol);
+  pr(x+3,y-5,2,2,eyeCol);pr(x+5,y-3,2,2,eyeCol);
+  pr(x+3,y-3,2,2,eyeCol);pr(x+5,y-5,2,2,eyeCol);
+  pr(x-1,y+1,2,2,noseCol);
+  pr(x-2,y+3,4,2,eyeCol);
+  pr(x-1,y+4,2,3,tongueCol);
+}
+
+// 小白圓（MY）
+// ── 共用：一排小貓（含底盤）─────────────────────────────
+// ── 縮放版 IP（canvas scale 縮小大版 IP）──────────────────
+function drawScaledIP(x,y,scale,drawFn){
+  cx.save();
+  cx.translate(snap(x),snap(y));
+  cx.scale(scale,scale);
+  drawFn(0,0);
+  cx.restore();
+}
+
+// Lemon版各成員IP（黃色系）
+function drawLemonKarinaIP(x,y){
+  drawCatIP(x,y,'#eedd88','#ccbb44','#fffff0','#886600','#aa9900','#ddcc00','#ffdd00');
+}
+function drawLemonGiselleIP(x,y){
+  drawCatIP(x,y,'#e8d870','#bbaa33','#fffff0','#886600','#aa9900','#ddcc00','#ffdd00');
+}
+function drawLemonWinterIP(x,y){
+  drawCatIP(x,y,'#f5eeaa','#ddcc55','#fffff8','#886600','#aa9900','#ddcc00','#ffee44');
+}
+function drawLemonNingningIP(x,y){
+  drawCatIP(x,y,'#ddd060','#bbaa22','#fffff0','#886600','#aa9900','#ddcc00','#ffcc00');
+}
+
+// ── 縮小版原版UFO（MY代表）──────────────────────────────
+function drawMiniUFO(x,y){
+  const S=0.65;
+  function rp(rx,ry,rw,rh,c){pr(x+rx*S,y+ry*S,Math.max(P,rw*S),Math.max(P,rh*S),c);}
+  rp(-10,0,5,9,'#009933'); rp(4,0,5,9,'#009933');
+  rp(-8,-22,16,24,'#44cc44'); rp(-11,-15,22,14,'#44cc44');
+  rp(-6,-13,5,5,'#66ee66'); rp(-3,-9,3,3,'#44cc44');
+  rp(-11,-19,9,11,'#ffff00'); rp(2,-19,9,11,'#ffff00');
+  rp(-10,-18,7,9,'#ff8800'); rp(3,-18,7,9,'#ff8800');
+  rp(-9,-17,5,7,'#111100'); rp(4,-17,5,7,'#111100');
+  rp(-8,-16,3,3,'#fff');    rp(5,-16,3,3,'#fff');
+  rp(-13,-22,9,3,'#ff44aa'); rp(4,-22,9,3,'#ff44aa');
+  rp(-4,-7,8,3,'#ff2200');
+  rp(-18,8,36,5,'#223355'); rp(-20,10,40,4,'#2244aa'); rp(-16,13,32,3,'#1a2288');
+  rp(-12,2,24,6,'#334466'); rp(-14,3,28,5,'#3355aa');
+  let lc=['#00ffff','#ffff44','#00ffff'];
+  for(let i=0;i<3;i++) pr(x+(-8+i*8)*S,y+9*S,4,3,lc[i]);
+  let ef=fr%10<5;
+  pr(x-2,y+16,5,ef?7:5,'#00ff88'); pr(x-1,y+16,3,ef?5:4,'#aaffcc');
+}
+
+// ── Be my æ Day：菱形排列，aespa 包圍 MY ──────────────────
+function drawAeRow(x,y){
+  let r=72,sc=0.85;
+  drawScaledIP(x,    y-r, sc, drawWinterIP);
+  drawScaledIP(x-r,  y,   sc, drawGiselleIP);
+  drawScaledIP(x+r,  y,   sc, drawNingningIP);
+  drawScaledIP(x,    y+r, sc, drawKarinaIP);
+  drawMiniUFO(x,y);
+}
+
+// ── kwangya日：四小隻彩色一排 ───────────────────────────
+function drawColorRow(x,y){
+  let sp=36,sc=0.5;
+  drawScaledIP(x-sp*1.5,y,sc,drawKarinaIP);
+  drawScaledIP(x-sp*0.5,y,sc,drawGiselleIP);
+  drawScaledIP(x+sp*0.5,y,sc,drawWinterIP);
+  drawScaledIP(x+sp*1.5,y,sc,drawNingningIP);
+}
+
+// ── Lemon Day：四小隻黃色檸檬版一排 ────────────────────────
+function drawLemonRow(x,y){
+  let sp=36,sc=0.5;
+  drawScaledIP(x-sp*1.5,y,sc,drawLemonKarinaIP);
+  drawScaledIP(x-sp*0.5,y,sc,drawLemonGiselleIP);
+  drawScaledIP(x+sp*0.5,y,sc,drawLemonWinterIP);
+  drawScaledIP(x+sp*1.5,y,sc,drawLemonNingningIP);
+}
+
+function drawUFO(x,y){
+  if(challengeMode&&todayChallenge){
+    const id=todayChallenge.id;
+    if(id==='karina') return drawKarinaIP(x,y);
+    if(id==='giselle') return drawGiselleIP(x,y);
+    if(id==='winter') return drawWinterIP(x,y);
+    if(id==='ningning') return drawNingningIP(x,y);
+    if(id==='ae') return drawAeRow(x,y);
+    if(id==='kwangya') return drawColorRow(x,y);
+    if(id==='lemon') return drawLemonRow(x,y);
+  }
+  // 一般模式 — 原版外星人UFO
+  pr(x-10,y-18,20,16,'#22aa22');
+  pr(x-12,y-14,24,11,'#33bb33');
+  pr(x-8,y-22,16,6,'#22aa22');
+  pr(x-6,y-21,5,4,'#66ee66');
+  pr(x-3,y-17,3,3,'#44cc44');
+  pr(x-11,y-19,9,11,'#ffff00');
+  pr(x-10,y-18,7,9,'#ff8800');
+  pr(x-9,y-17,5,7,'#111100');
+  pr(x-8,y-17,3,3,'#ffffff');
+  pr(x+2,y-19,9,11,'#ffff00');
+  pr(x+3,y-18,7,9,'#ff8800');
+  pr(x+4,y-17,5,7,'#111100');
+  pr(x+5,y-17,3,3,'#ffffff');
+  pr(x-13,y-21,9,3,'#ff44aa');
+  pr(x+4,y-21,9,3,'#ff44aa');
+  pr(x-4,y-7,8,3,'#ff2200');
+  pr(x-3,y-6,6,3,'#cc1100');
+  pr(x-4,y-5,2,2,'#ffffff');
+  pr(x+2,y-5,2,2,'#ffffff');
+  pr(x-4,y-23,3,5,'#cc7700');
+  pr(x+1,y-23,3,5,'#cc7700');
+  pr(x-7,y-24,4,4,'#ffaa00');
+  pr(x+3,y-24,4,4,'#ffaa00');
+  pr(x-22,y-10,8,4,'#22aa22');
+  pr(x-24,y-8,5,4,'#22aa22');
+  pr(x-26,y-5,4,4,'#ffaa00');
+  pr(x+14,y-10,8,4,'#22aa22');
+  pr(x+19,y-8,5,4,'#22aa22');
+  pr(x+22,y-5,4,4,'#ffaa00');
+  pr(x-30,y+2,60,7,'#334466');
+  pr(x-32,y+4,64,6,'#3355aa');
+  pr(x-28,y+8,56,5,'#445577');
+  pr(x-24,y+11,48,4,'#223355');
+  let lc=['#00ffff','#ffff00','#00ffff','#ff44ff','#00ffff'];
+  for(let i=0;i<5;i++){pr(x-18+i*9,y+4,5,5,lc[i]);}
+  pr(x-18,y-4,36,7,'#556699');
+  pr(x-20,y-2,40,6,'#4466aa');
+  pr(x-16,y-6,32,4,'#667799');
+  cx.save();cx.globalAlpha=0.55;
+  cx.font='bold 5px "Courier New"';cx.fillStyle='#aaccff';
+  cx.fillText('A51TW',snap(x-11),snap(y+7));
+  cx.restore();
+  let ef=fr%10<5;
+  pr(x-3,y+15,6,ef?8:6,'#00ff88');
+  pr(x-2,y+15,4,ef?6:4,'#aaffcc');
+  pr(x-1,y+15,2,ef?4:3,'#ffffff');
+  if(superMode>0&&fr%6<3){cx.strokeStyle='#ffff00';cx.lineWidth=2;cx.strokeRect(snap(x-34),snap(y-26),68,48);}
+}
+
+function drawHeart(x,y,r,hit){
+  let W2=r*1.25;
+  let c=hit?'#fff':'#5599ff',d=hit?'#aaa':'#2255cc',l=hit?'#fff':'#aaccff';
+  pr(x-W2,y,W2*2,r*0.75,c);
+  pr(x-W2+3,y-3,W2*2-6,5,c);
+  pr(x-W2,y-2,W2*0.82,W2*0.82,c);pr(x+W2*0.18,y-2,W2*0.82,W2*0.82,c);
+  pr(x-W2+3,y-r*0.65,W2-3,r*0.65,c);pr(x+4,y-r*0.65,W2-3,r*0.65,c);
+  pr(x-3,y+r*0.72,6,r*0.45,c);
+  pr(x-W2+4,y-r*0.55,7,5,l);pr(x-W2+4,y-r*0.55,5,4,'#ddeeff');pr(x-W2+5,y-r*0.45,3,3,'#fff');
+  let dy=y+r*0.85;
+  pr(x-4,dy,9,5,c);pr(x-3,dy+4,8,4,c);pr(x-2,dy+7,6,4,d);pr(x-1,dy+10,4,3,d);
+  cx.fillStyle=d;cx.beginPath();cx.arc(snap(x),snap(dy+13),P*1.2,0,Math.PI*2);cx.fill();
+  pr(x+W2-3,y+r*0.4,5,5,c);pr(x+W2-3,y+r*0.4+4,4,3,d);
+  cx.fillStyle=d;cx.beginPath();cx.arc(snap(x+W2),snap(y+r*0.4+7),P*0.8,0,Math.PI*2);cx.fill();
+}
+
+function drawMoon(x,y,r,rot,hit){
+  let c=hit?'#fff':'#ffdd00',d=hit?'#888':'#cc9900',l=hit?'#fff':'#ffff88';
+  let R=r*1.15;
+  for(let px2=-R;px2<=R;px2+=P)
+    for(let py2=-R;py2<=R;py2+=P)
+      if(px2*px2+py2*py2<=R*R){cx.fillStyle=c;cx.fillRect(snap(x+px2),snap(y+py2),P,P);}
+  let ir=R*0.72,ox=R*0.3,oy=-R*0.05;
+  for(let px2=-R;px2<=R;px2+=P)
+    for(let py2=-R;py2<=R;py2+=P){
+      let ddx=px2-ox,ddy=py2-oy;
+      if(ddx*ddx+ddy*ddy<ir*ir){cx.fillStyle='#000010';cx.fillRect(snap(x+px2),snap(y+py2),P,P);}
+    }
+  pr(x-R+4,y-R+4,9,9,l);pr(x-R+4,y-R+4,6,6,'#fff8cc');pr(x-R+4,y-R+5,4,4,'#ffffff');
+  pr(x-R+5,y-R+13,3,5,l);
+  pr(x+R*0.38,y+R*0.28,10,10,c);pr(x+R*0.38+1,y+R*0.28+9,7,7,c);
+  pr(x+R*0.38+2,y+R*0.28+15,5,5,d);pr(x+R*0.38+3,y+R*0.28+19,3,4,d);
+  let bx=x-R*0.28,by=y+R-3;
+  pr(bx,by,10,5,c);pr(bx,by+4,10,5,c);pr(bx+1,by+8,8,4,c);
+  pr(bx+1,by+11,6,4,d);pr(bx+2,by+14,4,3,d);
+  cx.fillStyle=d;cx.beginPath();cx.arc(snap(bx+5),snap(by+17),P*1.5,0,Math.PI*2);cx.fill();
+}
+
+function drawStar(x,y,r,rot,hit){
+  let c=hit?'#fff':'#ffee00',d=hit?'#777':'#996600',l='#fffff0';
+  let R=Math.max(r,14);
+  cx.save();cx.translate(snap(x),snap(y));cx.rotate(rot);
+  for(let i=0;i<5;i++){
+    let a=i*Math.PI*2/5-Math.PI/2;
+    let tx=Math.cos(a)*R,ty=Math.sin(a)*R;
+    cx.fillStyle='#aa7700';
+    cx.fillRect(snap(tx-P*2.5),snap(ty-P*2.5),P*5,P*5);
+  }
+  for(let px2=-(R+P);px2<=R+P;px2+=P){
+    for(let py2=-(R+P);py2<=R+P;py2+=P){
+      let ang=Math.atan2(py2,px2);
+      let dist=Math.sqrt(px2*px2+py2*py2);
+      let sector=((ang+Math.PI/2)/(Math.PI*2)*5+2.5)%5;
+      let frac=Math.abs((sector%1)-0.5)*2;
+      let starR=R*(0.42+(1-0.42)*(1-frac));
+      if(dist<=starR+P){
+        let bright=dist<starR*0.5;
+        cx.fillStyle=bright?l:c;
+        cx.fillRect(snap(px2-P/2),snap(py2-P/2),P,P);
+      }
+    }
+  }
+  for(let i=0;i<5;i++){
+    let a=i*Math.PI*2/5-Math.PI/2+Math.PI/5;
+    let cx2=Math.cos(a)*R*0.42,cy2=Math.sin(a)*R*0.42;
+    cx.fillStyle=d;cx.fillRect(snap(cx2-P),snap(cy2-P),P*2,P*2);
+  }
+  for(let i=0;i<5;i++){
+    let a=i*Math.PI*2/5-Math.PI/2;
+    let tx=Math.cos(a)*R,ty=Math.sin(a)*R;
+    cx.fillStyle=c;cx.fillRect(snap(tx-P),snap(ty-P),P*2,P*2);
+    if(i===0){cx.fillStyle=l;cx.fillRect(snap(tx-P),snap(ty-P),P,P);}
+  }
+  cx.fillStyle='#ffffff';
+  let hx=Math.cos(-Math.PI/2)*R*0.3,hy=Math.sin(-Math.PI/2)*R*0.3;
+  cx.fillRect(snap(hx-P),snap(hy-R*0.6),P*2,P*3);
+  let by=R*0.82;
+  cx.fillStyle=c;cx.fillRect(snap(-P*2),snap(by),P*4,P*3);
+  cx.fillRect(snap(-P*1.5),snap(by+P*2),P*3,P*4);
+  cx.fillStyle=d;cx.fillRect(snap(-P),snap(by+P*5),P*2,P*2);
+  cx.fillStyle=d;cx.beginPath();cx.arc(0,snap(by+P*6+2),P*1.6,0,Math.PI*2);cx.fill();
+  cx.fillStyle=c;cx.beginPath();cx.arc(0,snap(by+P*6+2),P*0.8,0,Math.PI*2);cx.fill();
+  cx.restore();
+}
+
+function drawButterfly(x,y,r,rot,hit){
+  let c=hit?'#fff':'#bb66ff',d=hit?'#aaa':'#7722cc',l=hit?'#fff':'#ddaaff';
+  let UW=r*1.55,UH=r*0.88,LW=r*1.05,LH=r*0.72;
+  pr(x-UW-r*0.08,y-UH*0.75,UW,UH,c);pr(x-UW+4,y-UH*0.6,UW-7,UH*0.62,l);
+  pr(x-UW-r*0.08,y-UH*0.75,UW*0.35,UH*0.5,l);
+  pr(x+r*0.08,y-UH*0.75,UW,UH,c);pr(x+r*0.08+3,y-UH*0.6,UW-7,UH*0.62,l);
+  pr(x+UW*0.65+r*0.08,y-UH*0.75,UW*0.35,UH*0.5,l);
+  pr(x-LW-r*0.08,y+r*0.04,LW,LH,c);pr(x-LW+3,y+r*0.14,LW-6,LH*0.6,l);
+  pr(x+r*0.08,y+r*0.04,LW,LH,c);pr(x+r*0.08+3,y+r*0.14,LW-6,LH*0.6,l);
+  pr(x-5,y-UH*0.75,10,UH+LH+3,d);pr(x-3,y-UH*0.6,6,UH+LH,'#330066');
+  pr(x-4,y-UH*0.75-8,3,9,d);pr(x+1,y-UH*0.75-8,3,9,d);
+  pr(x-7,y-UH*0.75-8,4,4,d);pr(x+2,y-UH*0.75-8,4,4,d);
+  let by=y+LH+4;
+  pr(x-4,by,8,4,c);pr(x-3,by+3,7,4,c);pr(x-2,by+6,5,4,d);
+  cx.fillStyle=d;cx.beginPath();cx.arc(snap(x),snap(by+10),P*1.5,0,Math.PI*2);cx.fill();
+}
+
+// ── 今日挑戰敵人 ──────────────────────────────────────────
+function drawDragonfly(x,y,rot,r,hit){ // Giselle日蜻蜓
+  let c=hit?'#fff':'#88ffcc',d=hit?'#aaa':'#00aa88',w=hit?'#eee':'#ccffee';
+  cx.save();cx.translate(snap(x),snap(y));cx.rotate(rot);
+  pr(-r*1.6,-r*0.5,r*1.5,r*0.4,w);pr(r*0.1,-r*0.5,r*1.5,r*0.4,w);
+  pr(-r*1.6,r*0.05,r*1.4,r*0.35,w);pr(r*0.2,r*0.05,r*1.4,r*0.35,w);
+  pr(-2,-r*0.6,4,r*1.8,d);
+  for(let i=0;i<4;i++) pr(-3,-r*0.6+i*(r*0.4),6,3,c);
+  pr(-r*0.5,-r*0.7,r,r*0.6,c);
+  pr(-r*0.3,-r*0.65,r*0.6,r*0.45,d);
+  pr(-4,-r*0.6,3,3,'#ffff00');pr(1,-r*0.6,3,3,'#ffff00');
+  cx.restore();
+}
+function drawYam(x,y,r,hit){
+  let skin=hit?'#fff':'#774466', skind=hit?'#bbb':'#552244', skinl=hit?'#fff':'#997788';
+  let inner=hit?'#ffe':'#f5e090', innerd=hit?'#ccc':'#d4a820';
+  // 橫長橢圓外皮（寬1.7 高0.9，像圖一那種胖長地瓜）
+  for(let px2=-(r*1.7|0);px2<=(r*1.7|0);px2+=P)
+    for(let py2=-(r*0.9|0);py2<=(r*0.9|0);py2+=P){
+      let nx=px2/(r*1.7),ny=py2/(r*0.9);
+      if(nx*nx+ny*ny<=1){cx.fillStyle=skin;cx.fillRect(snap(x+px2),snap(y+py2),P,P);}
+    }
+  // 外皮細紋（橫向深色線）
+  pr(x-r*1.1,y-r*0.2,r*0.3,2,skind); pr(x-r*0.3,y+r*0.3,r*0.25,2,skind);
+  pr(x+r*0.4,y-r*0.35,r*0.3,2,skind); pr(x+r*0.9,y+r*0.1,r*0.25,2,skind);
+  // 外皮高光（左上）
+  pr(x-r*0.9,y-r*0.55,r*0.4,r*0.15,skinl);
+  // 切面（中間偏左，米黃色橢圓）
+  let cx2=x-r*0.1, cy2=y;
+  for(let px2=-(r*0.75|0);px2<=(r*0.75|0);px2+=P)
+    for(let py2=-(r*0.75|0);py2<=(r*0.75|0);py2+=P){
+      let nx=px2/(r*0.75),ny=py2/(r*0.75);
+      if(nx*nx+ny*ny<=1){cx.fillStyle=inner;cx.fillRect(snap(cx2+px2),snap(cy2+py2),P,P);}
+    }
+  // 切面高光（左上米白）
+  pr(cx2-r*0.4,cy2-r*0.4,r*0.35,r*0.25,'#fffff0');
+  pr(cx2-r*0.3,cy2-r*0.3,r*0.2,r*0.15,'#ffffff');
+  // 切面紋路（深色線模擬纖維）
+  pr(cx2-r*0.3,cy2+r*0.1,r*0.6,2,innerd); pr(cx2-r*0.1,cy2+r*0.3,r*0.4,2,innerd);
+  pr(cx2-r*0.4,cy2-r*0.2,r*0.25,2,innerd);
+  // 兩端尖頭
+  pr(x-r*1.7,y-3,6,6,skind); pr(x-r*1.7+3,y-1,3,3,skind);
+  pr(x+r*1.65,y-2,5,5,skind);
+  // 靜電（拔絲！Winter特有）
+  if(fr%14<7){
+    cx.strokeStyle='#ffffaa';cx.lineWidth=1;
+    cx.beginPath();cx.moveTo(snap(x-r*1.5),snap(y-r*0.5));cx.lineTo(snap(x-r*1.7),snap(y-r*0.8));cx.stroke();
+    cx.beginPath();cx.moveTo(snap(x+r*1.3),snap(y-r*0.3));cx.lineTo(snap(x+r*1.5),snap(y-r*0.6));cx.stroke();
+    pr(x-r*1.75,y-r*0.85,3,3,'#ffffaa'); pr(x+r*1.45,y-r*0.65,3,3,'#ffffaa');
+  }
+}
+function drawNote(x,y,r,rot,hit){ // Ningning日音符
+  let c=hit?'#fff':'#dd88ff',d=hit?'#aaa':'#8833cc',l=hit?'#fff':'#eebbff';
+  cx.save();cx.translate(snap(x),snap(y));cx.rotate(rot);
+  cx.beginPath();cx.arc(-r*0.2,r*0.3,r*0.45,0,Math.PI*2);cx.fillStyle=c;cx.fill();
+  pr(-r*0.2-3,r*0.3-2,6,5,l);
+  pr(r*0.25,r*0.3,4,4,c);
+  cx.beginPath();cx.arc(r*0.25,r*0.3,r*0.38,0,Math.PI*2);cx.fillStyle=c;cx.fill();
+  pr(r*0.25-2,r*0.3-1,4,4,l);
+  pr(r*0.25+r*0.38-3,-r*0.7,4,r);cx.fillStyle=c;cx.fillRect(snap(r*0.25+r*0.38-3),snap(-r*0.7),4,snap(r));
+  pr(-r*0.2+r*0.45-3,-r*0.7,4,r);cx.fillStyle=c;cx.fillRect(snap(-r*0.2+r*0.45-3),snap(-r*0.7),4,snap(r));
+  pr(-r*0.2+r*0.45-3,-r*0.7,r*0.8,4,c);
+  cx.restore();
+}
+function drawAespo(x,y,r,hit){ // Karina日 aespo文字怪
+  let c=hit?'#fff':'#88bbff',d=hit?'#aaa':'#3366cc',l=hit?'#fff':'#ccddff';
+  pr(x-r,y-r*0.8,r*2,r*1.6,d);
+  pr(x-r+2,y-r,r*2-4,r*0.35,c);
+  pr(x-r+2,y+r*0.6,r*2-4,r*0.35,c);
+  cx.save();
+  cx.font=`bold ${Math.max(10,r*0.9)}px "Courier New"`;
+  cx.fillStyle=hit?'#000':l;
+  cx.textAlign='center';cx.textBaseline='middle';
+  cx.fillText('aespo',snap(x),snap(y));
+  cx.textBaseline='alphabetic';cx.textAlign='left';
+  cx.restore();
+  if(fr%20<10){pr(x-r+3,y-r*0.7,4,4,'#ffff44');pr(x+r-7,y-r*0.7,4,4,'#ffff44');}
+}
+function drawMiniLemon(x,y,r,hit){ // Lemon日小檸檬
+  let c=hit?'#fff':'#f5e000',d=hit?'#aaa':'#c8a800',l=hit?'#fff':'#ffff88';
+  pr(x-r+4,y-r-2,r*2-8,4,c);pr(x-r+2,y-r,r*2-4,6,c);
+  pr(x-r,y-r+5,r*2,r*2-10,c);pr(x-r+2,y+r-6,r*2-4,6,c);
+  pr(x-r+5,y+r-2,r*2-10,3,c);pr(x-r+3,y-r-4,r*2-6,4,d);
+  pr(x-r+4,y-r+3,6,3,l);pr(x+r-10,y-r+3,6,3,l);
+  pr(x-2,y-r-6,4,5,d);pr(x-1,y-r-9,2,4,d);
+  pr(x-r+2,y-r*0.2,3,3,'#111100');pr(x+r-5,y-r*0.2,3,3,'#111100');
+  pr(x-3,y+r*0.2,6,3,'#cc4400');
+}
+function drawSMBuilding(x,y,r,hit){ // Beat KWANGYA SM大樓
+  let c=hit?'#fff':'#aabbcc',d=hit?'#888':'#667788',l=hit?'#fff':'#ccdde8';
+  let W2=r*1.4,H2=r*2.2;
+  pr(x-W2*0.5,y-H2*0.5,W2,H2,d);
+  pr(x-W2*0.5+2,y-H2*0.5,W2-4,4,c);
+  pr(x-W2*0.5,y-H2*0.5,4,H2,c);
+  pr(x+W2*0.5-4,y-H2*0.5,4,H2,c);
+  for(let row=0;row<4;row++){
+    for(let col=0;col<3;col++){
+      let wx=x-W2*0.5+5+col*(W2-10)/3;
+      let wy=y-H2*0.5+8+row*(H2-12)/4;
+      let lit=fr%30<15?(row+col)%2===0:(row+col)%2!==0;
+      pr(wx,wy,W2/4-2,H2/5-3,lit?'#ffee88':'#334455');
+    }
+  }
+  cx.save();
+  cx.font=`bold ${Math.max(8,r*0.55)}px "Courier New"`;
+  cx.fillStyle=hit?'#000':'#00aaff';
+  cx.textAlign='center';cx.textBaseline='middle';
+  cx.fillText('SM',snap(x),snap(y+H2*0.15));
+  cx.textBaseline='alphabetic';cx.textAlign='left';
+  cx.restore();
+  pr(x-W2*0.5,y+H2*0.5,W2,4,c);
+  if(hit){pr(x-W2*0.5,y-H2*0.5,W2,H2,'rgba(255,255,255,0.3)');}
+}
+
+// ── 今日挑戰子彈繪製 ──────────────────────────────────────
+function drawNormalBullet(b){
+  let sweepCol='#ff2222',superCol='#ffee00';
+  let isRainbow=secretModeActive&&!challengeMode;
+  let sz=b.bsize||'small';
+  // 爆米花子彈：不規則白色膨脹塊
+  if(sz==='popcorn'){
+    cx.save();cx.translate(snap(b.x),snap(b.y));
+    cx.fillStyle='#fffef0';
+    cx.beginPath();cx.arc(0,0,5,0,Math.PI*2);cx.fill();
+    cx.fillStyle='#fff8e0';
+    cx.beginPath();cx.arc(3,2,4,0,Math.PI*2);cx.fill();
+    cx.beginPath();cx.arc(-3,2,3,0,Math.PI*2);cx.fill();
+    cx.beginPath();cx.arc(0,-4,3,0,Math.PI*2);cx.fill();
+    cx.fillStyle='#ddcc88';
+    cx.beginPath();cx.arc(0,0,2,0,Math.PI*2);cx.fill();
+    cx.restore();
+    return;
+  }
+  if(b.laser){
+    let thick=b.thick;
+    let coreW=thick?14:8, beamH=thick?72:62;
+    cx.globalAlpha=0.09;
+    cx.fillStyle='#4466ff';
+    let hw1=thick?44:26;
+    cx.fillRect(snap(b.x-hw1/2),snap(b.y-beamH-4),hw1,beamH+8);
+    cx.globalAlpha=0.18;
+    cx.fillStyle='#7755ee';
+    let hw2=thick?30:18;
+    cx.fillRect(snap(b.x-hw2/2),snap(b.y-beamH-2),hw2,beamH+4);
+    cx.globalAlpha=1;
+    let mw=thick?18:10, seg=Math.ceil(beamH/3);
+    cx.fillStyle='#6699ff';cx.fillRect(snap(b.x-mw/2),snap(b.y-beamH),mw,seg);
+    cx.fillStyle='#9966ff';cx.fillRect(snap(b.x-mw/2),snap(b.y-beamH+seg),mw,seg);
+    cx.fillStyle='#bb66ff';cx.fillRect(snap(b.x-mw/2),snap(b.y-beamH+seg*2),mw,beamH-seg*2);
+    let iw=thick?10:6, iseg=Math.ceil(beamH*0.75/3);
+    cx.fillStyle='#99bbff';cx.fillRect(snap(b.x-iw/2),snap(b.y-beamH*0.75),iw,iseg);
+    cx.fillStyle='#bbaaff';cx.fillRect(snap(b.x-iw/2),snap(b.y-beamH*0.75+iseg),iw,iseg);
+    cx.fillStyle='#dd99ff';cx.fillRect(snap(b.x-iw/2),snap(b.y-beamH*0.75+iseg*2),iw,beamH*0.75-iseg*2);
+    let ww=thick?6:4;
+    cx.fillStyle='#ffffff';cx.fillRect(snap(b.x-ww/2),snap(b.y-beamH),ww,Math.round(beamH*0.92));
+    cx.globalAlpha=0.45;cx.fillStyle='#eeeeff';
+    cx.fillRect(snap(b.x-ww/2-2),snap(b.y-beamH),ww+4,Math.round(beamH*0.85));
+    cx.globalAlpha=1;
+    cx.globalAlpha=0.75;cx.fillStyle='#ccddff';
+    cx.fillRect(snap(b.x-mw*0.65/2),snap(b.y-beamH-4),mw*0.65,5);
+    cx.globalAlpha=0.6;cx.fillStyle='#ffffff';
+    cx.fillRect(snap(b.x-2),snap(b.y-beamH-7),4,9);
+    cx.globalAlpha=1;
+    if(fr%4===0){
+      let r=Math.random();
+      let pc=r<0.25?'#ffffff':r<0.6?'#88aaff':'#cc88ff';
+      particles.push({x:b.x+(Math.random()*24-12),y:b.y-Math.random()*beamH,
+        vx:(Math.random()-0.5)*1.8,vy:-(Math.random()*0.5+0.1),
+        life:22+(Math.random()*14|0),maxLife:36,color:pc,coin:false});
+    }
+  } else {
+    // bsize: small=w4h10, mid=w6h14, large=w8h18, huge=w11h22
+    const dims={small:[4,10],mid:[6,14],large:[8,18],huge:[11,22]};
+    const cols={small:'#00ff88',mid:'#00ffcc',large:'#ffdd00',huge:'#ff8800'};
+    let [bw,bh]=dims[sz]||dims.small;
+    let bc=sweepMode>0?sweepCol:superMode>0?superCol:isRainbow?`hsl(${fr*8%360},100%,65%)`:cols[sz]||'#00ff88';
+    cx.fillStyle=bc;cx.fillRect(snap(b.x-bw/2),snap(b.y-bh),bw,bh);
+    cx.fillStyle='#ffffff';cx.fillRect(snap(b.x-1),snap(b.y-bh),2,Math.round(bh*0.5));
+  }
+}
+
+function drawChallengeBullet(b){
+  let btype=challengeMode&&todayChallenge?todayChallenge.bullet:'';
+  if(!challengeMode||!btype){drawNormalBullet(b);return;}
+  // 今日挑戰特殊子彈（雷射仍用一般樣式）
+  if(b.laser){drawNormalBullet(b);return;}
+  if(btype==='heart_blue'){
+    cx.fillStyle='#5599ff';cx.beginPath();
+    cx.arc(b.x-3,b.y-2,4,Math.PI,0);cx.arc(b.x+3,b.y-2,4,Math.PI,0);
+    cx.lineTo(b.x,b.y+6);cx.closePath();cx.fill();
+    pr(b.x-2,b.y-5,2,3,'#aaccff');
+  } else if(btype==='moon_yellow'){
+    cx.fillStyle='#ffdd00';cx.beginPath();cx.arc(snap(b.x),snap(b.y),5,0,Math.PI*2);cx.fill();
+    cx.fillStyle='#000010';cx.beginPath();cx.arc(snap(b.x+2),snap(b.y-1),3.5,0,Math.PI*2);cx.fill();
+    pr(b.x-1,b.y-6,2,3,'#ffee88');
+  } else if(btype==='star_yellow'){
+    cx.save();cx.translate(snap(b.x),snap(b.y));
+    cx.fillStyle='#ffee00';
+    for(let i=0;i<5;i++){let a=i*Math.PI*2/5-Math.PI/2;cx.fillRect(snap(Math.cos(a)*5-1),snap(Math.sin(a)*5-1),3,3);}
+    cx.fillRect(-2,-2,4,4);cx.restore();
+  } else if(btype==='butterfly_purple'){
+    pr(b.x-7,b.y-3,6,5,'#bb66ff');pr(b.x+1,b.y-3,6,5,'#bb66ff');
+    pr(b.x-5,b.y+1,4,4,'#bb66ff');pr(b.x+1,b.y+1,4,4,'#bb66ff');
+    pr(b.x-1,b.y-5,3,10,'#7722cc');
+  } else if(btype==='ae_text'){
+    let words=['Be','my','æ'];
+    let w=words[Math.floor(fr/8)%3];
+    cx.font='bold 9px "Courier New"';cx.fillStyle='#aaaaff';cx.textAlign='center';
+    cx.fillText(w,snap(b.x),snap(b.y));cx.textAlign='left';
+  } else if(btype==='note_green'){
+    cx.fillStyle='#00cc66';
+    cx.beginPath();cx.arc(snap(b.x),snap(b.y+3),4,0,Math.PI*2);cx.fill();
+    pr(b.x+2,b.y-6,3,10,'#00cc66');
+    pr(b.x+2,b.y-6,8,3,'#00cc66');
+  } else if(btype==='fire'){
+    let fc=fr%12<6?'#ff4400':'#ff8800';
+    pr(b.x-3,b.y-8,6,14,fc);pr(b.x-5,b.y-4,10,10,fr%12<6?'#ff8800':'#ffcc00');
+    pr(b.x-2,b.y-10,4,4,'#ffff44');
+  } else {drawNormalBullet(b);}
+}
+
+function drawSnake(x,y,rot,r,hit){
+  let base=hit?'#999':'#1a0a2e',shine=hit?'#ccc':fr%8<4?'#4400cc':'#6611ee';
+  let hilite=hit?'#aa88cc':'#2d1155';
+  for(let i=5;i>=0;i--){
+    let a=rot-1.1+i*0.42,sx=x+Math.cos(a)*i*r*0.58,sy=y+Math.sin(a)*i*r*0.58;
+    let sw=Math.max(4,r*(1.12-i*0.1));
+    pr(sx-sw,sy-sw,sw*2,sw*2,i%2===0?base:hilite);
+    pr(sx-sw+1,sy-sw+2,sw*2-2,3,shine);
+    pr(sx-sw+1,sy+sw-5,sw*2-2,3,shine);
+  }
+  pr(x-r,y-r,r*2,r*2,base);pr(x-r+2,y-r+2,r*2-4,r*2-4,hilite);
+  pr(x-r+3,y-r+3,5,5,'#ff2200');pr(x+r-8,y-r+3,5,5,'#ff2200');
+  pr(x-r+4,y-r+4,3,3,'#ffaa00');pr(x+r-7,y-r+4,3,3,'#ffaa00');
+  pr(x-3,y+r-7,6,9,'#cc1133');pr(x-5,y+r-4,10,4,'#cc1133');
+  pr(x-3,y+r-1,3,3,'#fff');pr(x+1,y+r-1,3,3,'#fff');
+}
+
+function drawLemonBoss(lb){
+  let x=lb.x,y=lb.y,r=lb.r;
+  let c=lb.hit>0?'#fff':'#f5e000',d=lb.hit>0?'#ccc':'#c8a800',l=lb.hit>0?'#fff':'#ffff88';
+  pr(x-r+8,y-r-4,r*2-16,8,c);pr(x-r+4,y-r,r*2-8,12,c);
+  pr(x-r,y-r+10,r*2,r*2-20,c);pr(x-r+4,y+r-12,r*2-8,12,c);
+  pr(x-r+12,y+r-4,r*2-24,4,c);pr(x-r+8,y-r-6,r*2-16,4,d);
+  pr(x+r-12,y-r+2,8,6,d);pr(x-r+4,y+r-2,r*2-8,3,d);
+  pr(x-r+6,y-r+8,14,5,l);pr(x+r-20,y-r+8,14,5,l);
+  cx.fillStyle='#222200';
+  let ex=x-r*0.32,ey=y-r*0.08;
+  cx.fillRect(snap(ex-12),snap(ey-7),snap(22),snap(14));cx.fillRect(snap(ex-9),snap(ey-10),snap(16),snap(4));
+  cx.fillRect(snap(x+r*0.32-10),snap(ey-7),snap(22),snap(14));cx.fillRect(snap(x+r*0.32-7),snap(ey-10),snap(16),snap(4));
+  cx.fillStyle='#ff4400';
+  cx.fillRect(snap(x-18),snap(y+r*0.2),snap(36),snap(12));cx.fillRect(snap(x-12),snap(y+r*0.2+12),snap(24),snap(8));
+  cx.fillStyle='#ff8800';
+  cx.fillRect(snap(x-14),snap(y+r*0.2+2),snap(6),snap(8));cx.fillRect(snap(x-4),snap(y+r*0.2+2),snap(8),snap(6));cx.fillRect(snap(x+8),snap(y+r*0.2+2),snap(6),snap(8));
+  pr(x-r,y+r+6,r*2,6,'#330000');pr(x-r,y+r+6,r*2*(lb.hp/lb.maxHp),6,'#ff4400');
+}
+
+function drawMambaHead(mb){
+  let x=mb.x,y=mb.y,r=mb.r;
+  for(let i=10;i>0;i--){
+    let a=mb.angle+i*0.35,sx=x-Math.cos(a)*i*r*0.55,sy=y-Math.sin(a)*i*r*0.55;
+    let sw=Math.max(6,r*(1.1-i*0.08));
+    pr(sx-sw,sy-sw,sw*2,sw*2,i%2===0?'#1a0a2e':'#2d1155');
+    pr(sx-sw+2,sy-sw+2,sw*2-4,4,'#6600cc');pr(sx-sw+2,sy+sw-6,sw*2-4,4,'#4400aa');
+  }
+  pr(x-r,y-r,r*2,r*2,'#1a0a2e');pr(x-r+3,y-r+3,r*2-6,r*2-6,'#2d1155');
+  pr(x-r+4,y-r+4,5,5,'#ff0000');pr(x+r-9,y-r+4,5,5,'#ff0000');
+  pr(x-r+5,y-r+5,3,3,'#ff8800');pr(x+r-8,y-r+5,3,3,'#ff8800');
+  pr(x-r+3,y-r+3,r*2-6,6,'#6600cc');pr(x-r+3,y+r-9,r*2-6,6,'#4400aa');
+  pr(x-4,y+r-8,8,11,'#440022');pr(x-6,y+r-4,12,4,'#660033');
+  pr(x-3,y+r,3,3,'#fff');pr(x+1,y+r,3,3,'#fff');
+  pr(x-r,y+r+8,r*2,7,'#2d0055');pr(x-r,y+r+8,r*2*(mb.hp/mb.maxHp),7,'#aa00ff');
+}
+
+function drawLemonSlice(x,y,isGold){
+  // 顏色設定：綠色HP版 / 淡金黃超級版
+  let skin = isGold?'#e8c840':'#88cc00';
+  let flesh= isGold?'#f5e87a':'#bbee44';
+  let pale = isGold?'#fdf5b0':'#ddff99';
+  let seg  = isGold?'#c8a830':'#66aa00';
+  let ctr  = isGold?'#fffde0':'#eeffcc';
+  let R=10; // 切片半徑
+  // 金色版：發光暈圈
+  if(isGold){
+    let glow=fr%16<8?0.55:0.35;
+    cx.globalAlpha=glow;
+    cx.fillStyle='#ffe066';
+    cx.beginPath();cx.arc(snap(x),snap(y),R+5,0,Math.PI*2);cx.fill();
+    cx.globalAlpha=1;
+  }
+  // 外皮（整圓）
+  cx.fillStyle=skin;
+  cx.beginPath();cx.arc(snap(x),snap(y),R,0,Math.PI*2);cx.fill();
+  // 果肉（略小的圓）
+  cx.fillStyle=flesh;
+  cx.beginPath();cx.arc(snap(x),snap(y),R-2,0,Math.PI*2);cx.fill();
+  // 8片果瓣（放射狀深色線）
+  cx.strokeStyle=seg;cx.lineWidth=1;
+  for(let i=0;i<8;i++){
+    let a=i*Math.PI/4;
+    cx.beginPath();
+    cx.moveTo(snap(x),snap(y));
+    cx.lineTo(snap(x+Math.cos(a)*(R-2)),snap(y+Math.sin(a)*(R-2)));
+    cx.stroke();
+  }
+  // 中心白點
+  cx.fillStyle=ctr;
+  cx.beginPath();cx.arc(snap(x),snap(y),2,0,Math.PI*2);cx.fill();
+  // 高光（左上）
+  cx.fillStyle='rgba(255,255,255,0.7)';
+  cx.beginPath();cx.arc(snap(x-3),snap(y-3),2,0,Math.PI*2);cx.fill();
+  // 像素感外框
+  pr(x-R,y-1,2,2,skin);pr(x+R-2,y-1,2,2,skin);
+  pr(x-1,y-R,2,2,skin);pr(x-1,y+R-2,2,2,skin);
+}
+
+function drawPickupGlow(x,y,r){
+  let pulse=0.22+Math.sin(fr*0.12)*0.18;
+  cx.globalAlpha=pulse;
+  cx.fillStyle='#ffffff';
+  cx.beginPath();cx.arc(snap(x),snap(y),r+8,0,Math.PI*2);cx.fill();
+  cx.globalAlpha=pulse*0.5;
+  cx.beginPath();cx.arc(snap(x),snap(y),r+14,0,Math.PI*2);cx.fill();
+  cx.globalAlpha=1;
+}
+
+function drawPickup(p){
+  if(p.type==='bullet'){
+    drawPickupGlow(p.x,p.y,10);
+    let bc=['#00ff88','#00ffcc','#ffdd00','#ff8800','#ff44ff'][Math.min(bulletLevel+1,4)];
+    pr(p.x-7,p.y-7,14,14,bc);
+    pr(p.x-4,p.y-4,8,8,'rgba(0,0,0,0.4)');
+    pr(p.x-1,p.y-5,3,9,'#ffffff');
+    pr(p.x-3,p.y-2,7,3,'#ffffff');
+    return;
+  }
+  if(p.type==='mint'){
+    drawPickupGlow(p.x,p.y,11);
+    cx.save();
+    cx.fillStyle='#66eebb';
+    cx.beginPath();cx.arc(snap(p.x),snap(p.y-2),11,0,Math.PI*2);cx.fill();
+    cx.fillStyle='#44cc88';
+    cx.beginPath();cx.arc(snap(p.x),snap(p.y-2),11,Math.PI*0.1,Math.PI*0.9);cx.fill();
+    cx.fillStyle='#aaffdd';
+    cx.beginPath();cx.arc(snap(p.x-3),snap(p.y-6),4,0,Math.PI*2);cx.fill();
+    cx.fillStyle='#ffffff';
+    cx.beginPath();cx.arc(snap(p.x-4),snap(p.y-7),2,0,Math.PI*2);cx.fill();
+    let chips=[[-4,-5,4,2],[2,-3,3,2],[-2,-1,5,2],[-5,0,3,2],[3,-6,4,2],[-1,3,4,2]];
+    chips.forEach(([cx2,cy2,cw,ch])=>{cx.fillStyle='#331100';cx.fillRect(snap(p.x+cx2),snap(p.y+cy2),cw,ch);});
+    cx.fillStyle='#55cc99';
+    cx.beginPath();cx.ellipse(snap(p.x),snap(p.y+9),8,3,0,0,Math.PI*2);cx.fill();
+    cx.restore();
+    return;
+  }
+  if(p.type==='corn'){
+    drawPickupGlow(p.x,p.y,13);
+    cx.fillStyle='#55bb33';
+    cx.beginPath();cx.ellipse(snap(p.x-5),snap(p.y),4,13,(-Math.PI/5),0,Math.PI*2);cx.fill();
+    cx.beginPath();cx.ellipse(snap(p.x+5),snap(p.y),4,13,(Math.PI/5),0,Math.PI*2);cx.fill();
+    cx.fillStyle='#77dd44';
+    cx.beginPath();cx.ellipse(snap(p.x-3),snap(p.y),2,11,(-Math.PI/6),0,Math.PI*2);cx.fill();
+    cx.fillStyle='#f5c518';
+    cx.beginPath();cx.ellipse(snap(p.x),snap(p.y+2),6,11,0,0,Math.PI*2);cx.fill();
+    let rows=5,cols=3;
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+      cx.fillStyle=r%2===0?'#e6b800':'#ffd700';
+      cx.beginPath();cx.arc(snap(p.x-4+c*4),snap(p.y-8+r*4),2,0,Math.PI*2);cx.fill();
+    }
+    cx.strokeStyle='#cc8800';cx.lineWidth=1;
+    for(let i=-2;i<=2;i++){cx.beginPath();cx.moveTo(snap(p.x+i*2),snap(p.y-11));cx.lineTo(snap(p.x+i*2+(i*1)),snap(p.y-16));cx.stroke();}
+    return;
+  }
+  if(p.type==='hp'){
+    drawPickupGlow(p.x,p.y,9);
+    cx.fillStyle='#ff4466';cx.beginPath();
+    cx.arc(snap(p.x-4),snap(p.y-2),5,Math.PI,0);
+    cx.arc(snap(p.x+4),snap(p.y-2),5,Math.PI,0);
+    cx.lineTo(p.x,p.y+8);cx.closePath();cx.fill();
+    cx.fillStyle='#ffaacc';cx.fillRect(snap(p.x-3),snap(p.y-4),3,3);
+    return;
+  }
+  // lemon_green / super
+  drawPickupGlow(p.x,p.y,10);
+  drawLemonSlice(p.x,p.y,p.type==='super');
+  if(p.type==='lemon_green'&&p.expVal){
+    cx.font='bold 9px "Courier New"';
+    cx.fillStyle='#ffffff';
+    cx.textAlign='center';
+    cx.fillText('+'+p.expVal,snap(p.x),snap(p.y-13));
+    cx.textAlign='left';
+  }
+}
+
+function initGame(){
+  score=0;lives=3;fr=0;spawnIv=90;spawnTimer=0;bulletLevel=0;bulletExp=0;spreadLevel=0;sweepMode=0;sweepCount=0;
+  combo=0;comboTimer=0;comboMult=1;comboFlashMsg='';comboFlashTimer=0;
+  lemonBossActive=false;mambaActive=false;lemonBoss=null;mamba=null;shakeTimer=0;superMode=0;
+  posKillCount=0;posReady=false;posActive=false;posTimer=0;autoFireTimer=0;
+  eggScore51Done=false;
+  killCount={heart:0,star:0,moon:0,butterfly:0};
+  eggUnlocked={heart:false,star:false,moon:false,butterfly:false};
+  eggAllCollected=false;eggFinalDone=false;eggFinalKills=0;eggAnyKillAfter=0;
+  eggMsg='';eggMsgTimer=0;eggFlash='';eggFlashTimer=0;
+  topEdgeTimer=0;topEggDone=false;
+  // secretModeEverActive 不重置（一局觸發永久記住）
+  secretModeActive=challengeMode?false:secretModeEverActive;
+  lastLemonThreshold=0;lastMambaThreshold=0;lemonBossCount=0;mambaKillCount=0;
+  ship={x:W/2,y:H-80,tx:W/2,ty:H-80};
+  bullets=[];enemies=[];bossBullets=[];particles=[];powerups=[];
+  stars=Array.from({length:70},()=>({x:Math.floor(Math.random()*W/P)*P,y:Math.floor(Math.random()*H/P)*P,s:Math.random()<0.25?2:1,sp:Math.random()*0.55+0.2,ph:(Math.random()*30)|0}));
+}
+
+function spawnEnemy(){
+  let lv=Math.min(5,Math.floor(fr/2000)); // 每約33秒升一級，最多5級
+  let t;
+  if(challengeMode&&todayChallenge){
+    const et=todayChallenge.enemy;
+    if(et==='snake_only') t='snake';
+    else if(et==='mini_lemon') t='mini_lemon';
+    else if(et==='dragonfly') t='dragonfly';
+    else if(et==='yam') t='yam';
+    else if(et==='note') t='note';
+    else if(et==='aespo') t='aespo';
+    else if(et==='sm_building') t='sm_building';
+    else{let rand=Math.random()*100;t=rand<23?'heart':rand<46?'moon':rand<69?'star':rand<92?'butterfly':'snake';}
+  } else {
+    let rand=Math.random()*100;
+    t=rand<23?'heart':rand<46?'moon':rand<69?'star':rand<92?'butterfly':'snake';
+  }
+  let r=t==='snake'?10:t==='star'||t==='sm_building'?15+lv:t==='note'?16+lv:11+lv;
+  let hp=t==='snake'?2+lv:t==='star'||t==='sm_building'?3+lv:1;
+  enemies.push({x:r+Math.floor(Math.random()*(W-r*2)/P)*P,y:-r*3,vx:(Math.random()-0.5)*1.2,vy:0.5+Math.random()*0.7+lv*0.08,r,type:t,hp,maxHp:hp,rot:0,rotSpeed:(Math.random()-0.5)*0.04,hit:0,coins:t==='snake'?3:1});
+}
+// 記錄上次召喚檸檬王和黑曼巴時的門檻
+let lastLemonThreshold=0, lastMambaThreshold=0;
+function spawnLemonBoss(){
+  lemonBossCount++;
+  lemonBossActive=true;
+  lemonBoss={x:W/2,y:-70,tx:W/2+80,r:55,hp:40,maxHp:40,hit:0,shootTimer:0,shotPhase:0};
+}
+function spawnMamba(){mambaActive=true;mamba={x:W/2,y:-60,r:30,hp:80,maxHp:80,hit:0,shootTimer:0,angle:Math.PI/2,vx:1.2};}
+
+function fireAt(tx,ty){
+  if(sweepMode>0) return;
+  let lvl=superMode>0?(bulletLevel>=9?9:Math.min(9,bulletLevel+2)):bulletLevel;
+  const sizes={0:'small',1:'small',2:'mid',3:'mid',4:'large',5:'large',6:'huge',7:'huge',8:'laser_thin',9:'laser_thick'};
+  const counts={0:1,1:3,2:1,3:3,4:1,5:3,6:1,7:3,8:1,9:1};
+  const sz=sizes[lvl]||'small';
+  const ct=counts[lvl]||1;
+  const isLaser=sz.startsWith('laser');
+  const offsets=ct===1?[0]:[-9,0,9];
+
+  let dx=tx-ship.x,dy=ty-ship.y;
+  let len=Math.sqrt(dx*dx+dy*dy)||1,sp=16;
+  let nx=dx/len,ny=dy/len;
+
+  function shoot(ox,vx,vy){
+    let yoff=isLaser?-20:-14;
+    bullets.push({x:ship.x+ox,y:ship.y+yoff,vx,vy,laser:isLaser,thick:sz==='laser_thick',bsize:sz});
+  }
+
+  for(let i=0;i<ct;i++){
+    let ox=ct===1?0:offsets[i];
+    let spd=sp-(i===1&&ct===3?1:0);
+    shoot(ox,nx*spd,ny*spd);
+  }
+
+  if(spreadLevel>=1){
+    let bvx=nx*sp,bvy=ny*sp;
+    let a1=-Math.PI/9,a2=Math.PI/9;
+    shoot(-8, bvx*Math.cos(a1)-bvy*Math.sin(a1), bvx*Math.sin(a1)+bvy*Math.cos(a1));
+    shoot( 8, bvx*Math.cos(a2)-bvy*Math.sin(a2), bvx*Math.sin(a2)+bvy*Math.cos(a2));
+  }
+  if(spreadLevel>=2){
+    let bvx=nx*sp,bvy=ny*sp;
+    let a3=-Math.PI/5,a4=Math.PI/5;
+    shoot(-16, bvx*Math.cos(a3)-bvy*Math.sin(a3), bvx*Math.sin(a3)+bvy*Math.cos(a3));
+    shoot( 16, bvx*Math.cos(a4)-bvy*Math.sin(a4), bvx*Math.sin(a4)+bvy*Math.cos(a4));
+  }
+}
+
+function spawnParticles(x,y,color,n){for(let i=0;i<n;i++){let a=Math.random()*Math.PI*2,sp=1+Math.random()*4;particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:30+(Math.random()*15|0),maxLife:45,color,coin:false});}}
+function spawnCoin(x,y){particles.push({x,y,vx:(Math.random()-0.5)*2.5,vy:-2-Math.random()*3,life:75,maxLife:75,color:'#ffd700',coin:true});}
+function getPos(e){const rc=cv.getBoundingClientRect(),sx=W/rc.width,sy=H/rc.height;if(e.touches)return{x:(e.touches[0].clientX-rc.left)*sx,y:(e.touches[0].clientY-rc.top)*sy};return{x:(e.clientX-rc.left)*sx,y:(e.clientY-rc.top)*sy};}
+function checkBulletHit(obj,rad){let hit=false;bullets=bullets.filter(b=>{let dx=b.x-obj.x,dy=b.y-obj.y;if(Math.sqrt(dx*dx+dy*dy)<rad+5){hit=true;spawnParticles(b.x,b.y,'#ffff00',4);return b.laser;}return true;});return hit;}
+
+// ── 連殺系統 ──────────────────────────────────────────────
+const comboThresholds=[0,5,10,20,35,50]; // 達到幾連殺升一級倍率
+const comboLabels=['','5 COMBO!','10 COMBO!!','20 COMBO!!!','35 COMBO!!!!','50 COMBO!!!!!'];
+const comboColors=['','#ffff44','#ffaa00','#ff6600','#ff2200','#ff00ff'];
+function addCombo(){
+  combo++;
+  comboTimer=180; // 3秒沒殺敵就歸零
+  // 計算倍率：每達到門檻升一級（最高×6）
+  let newMult=1;
+  for(let i=comboThresholds.length-1;i>=0;i--){
+    if(combo>=comboThresholds[i]){newMult=i+1;break;}
+  }
+  if(newMult>comboMult){
+    comboMult=newMult;
+    comboFlashMsg=comboLabels[comboMult-1]||('×'+comboMult+'!');
+    comboFlashTimer=90;
+  }
+}
+function resetCombo(){
+  combo=0;comboMult=1;comboTimer=0;
+}
+function triggerFlash(text,color){eggFlash=text;eggFlashTimer=180;eggFlashColor=color||'#00ffaa';}
+function triggerMsg(text,color){eggMsg=text;eggMsgTimer=220;eggMsgColor=color||'#00ffaa';}
+
+function onEnemyKilled(type){
+  // POS 擊殺累計
+  if(!posReady){
+    posKillCount++;
+    if(posKillCount>=POS_KILL_NEEDED){posKillCount=0;posReady=true;}
+  }
+  // 計數各類型
+  if(type==='heart'||type==='star'||type==='moon'||type==='butterfly') killCount[type]++;
+  // 若四個都已解鎖，累計任意擊殺
+  if(eggAllCollected&&!eggFinalDone){
+    eggAnyKillAfter++;
+    if(eggAnyKillAfter>=17){eggFinalDone=true;triggerFlash('We are the æspa','#ff88cc');}
+  }
+  // 個別解鎖檢查
+  if(!eggUnlocked.heart&&killCount.heart>=411){eggUnlocked.heart=true;triggerMsg('Karina Rocket Puncher 🚀','#ff66aa');}
+  if(!eggUnlocked.star&&killCount.star>=101){eggUnlocked.star=true;triggerMsg('Winter Armamenter ❄️','#aaddff');}
+  if(!eggUnlocked.moon&&killCount.moon>=1030){eggUnlocked.moon=true;triggerMsg('Giselle Xenoglossy ✨','#ffdd88');}
+  if(!eggUnlocked.butterfly&&killCount.butterfly>=1023){eggUnlocked.butterfly=true;triggerMsg('Ningning E.D Hacker 🦋','#dd88ff');}
+  // 四個全解鎖
+  if(!eggAllCollected&&eggUnlocked.heart&&eggUnlocked.star&&eggUnlocked.moon&&eggUnlocked.butterfly){
+    eggAllCollected=true;eggAnyKillAfter=0;triggerMsg('全員集結！再擊殺17個...','#ffffff');
+  }
+}
+
+function drawEggOverlay(){
+  // 閃字
+  if(eggFlashTimer>0){
+    eggFlashTimer--;
+    let alpha=eggFlashTimer>150?1:eggFlashTimer/150;
+    let sz=eggFlashTimer>150?32:32+(150-eggFlashTimer)*0.15;
+    cx.save();cx.globalAlpha=alpha;
+    cx.font=`bold ${Math.round(sz)}px "Courier New"`;
+    cx.textAlign='center';
+    // "We are the æspa" 用水藍→淡粉紫漸層
+    if(eggFlash==='We are the æspa'){
+      let tw=cx.measureText(eggFlash).width;
+      let grd=cx.createLinearGradient(W/2-tw/2,0,W/2+tw/2,0);
+      grd.addColorStop(0,'#88ddff');   // 水藍
+      grd.addColorStop(1,'#ddaaff');   // 淡粉紫
+      cx.fillStyle=grd;
+      // 陰影用雙色混合的中間色
+      cx.shadowColor='#bbccff';cx.shadowBlur=24;
+    } else {
+      cx.fillStyle=eggFlashColor;
+      cx.shadowColor=eggFlashColor;cx.shadowBlur=20;
+    }
+    cx.fillText(eggFlash,W/2,H/2);
+    cx.shadowBlur=0;cx.restore();
+  }
+  // 小訊息（底部浮現）
+  if(eggMsgTimer>0){
+    eggMsgTimer--;
+    let alpha=eggMsgTimer>180?1:eggMsgTimer/180;
+    cx.save();cx.globalAlpha=alpha;
+    cx.fillStyle='rgba(0,0,0,0.6)';
+    cx.fillRect(0,H/2+60,W,36);
+    cx.font='bold 13px "Courier New"';
+    cx.fillStyle=eggMsgColor;
+    cx.textAlign='center';
+    cx.shadowColor=eggMsgColor;cx.shadowBlur=10;
+    cx.fillText(eggMsg,W/2,H/2+83);
+    cx.shadowBlur=0;cx.restore();
+  }
+}
+
+const SHIP_MIN_Y=H/3,SHIP_MAX_Y=H-30;
+
+function loop(){
+  if(state!=='play')return;
+  requestAnimationFrame(loop);
+  fr++;
+  if(superMode>0) superMode--;
+  // 掃空模式處理
+  if(sweepMode>0){
+    sweepMode--;
+    if(sweepCount>0){
+      // LV8：每60幀清場一次，共2次（紅光）
+      if(sweepMode%60===0){
+        sweepCount--;
+        enemies.forEach(e=>{
+          spawnParticles(e.x,e.y,'#ff4444',10);
+          powerups.push({x:e.x,y:e.y,vy:1.5,type:'bullet'});
+          score+=(e.type==='snake'?25:12);
+          onEnemyKilled(e.type);
+        });
+        enemies=[];
+        // 對 Boss 造成一半血量傷害
+        if(lemonBoss){lemonBoss.hp=Math.max(1,Math.floor(lemonBoss.hp/2));lemonBoss.hit=20;}
+        if(mamba){mamba.hp=Math.max(1,Math.floor(mamba.hp/2));mamba.hit=20;}
+        shakeTimer=10;
+      }
+      if(fr%4<2){
+        cx.fillStyle='rgba(255,50,50,0.10)';cx.fillRect(0,0,W,H);
+        cx.strokeStyle='rgba(255,80,80,0.6)';cx.lineWidth=2;
+        let scanY=(fr*8)%H;cx.beginPath();cx.moveTo(0,scanY);cx.lineTo(W,scanY);cx.stroke();
+      }
+    } else {
+      // LV9：7秒持續清場，每幀新生的怪立即死亡並掉獎勵
+      enemies.forEach(e=>{
+        spawnParticles(e.x,e.y,'#ff44ff',6);
+        powerups.push({x:e.x,y:e.y,vy:1.5,type:'bullet'});
+        score+=(e.type==='snake'?25:12);
+        onEnemyKilled(e.type);
+      });
+      enemies=[];
+      if(fr%4<2){
+        cx.fillStyle='rgba(255,80,255,0.07)';cx.fillRect(0,0,W,H);
+        cx.strokeStyle='rgba(255,80,255,0.5)';cx.lineWidth=2;
+        let scanY=(fr*6)%H;cx.beginPath();cx.moveTo(0,scanY);cx.lineTo(W,scanY);cx.stroke();
+      }
+    }
+  }
+
+  // 先清背景（不受 shake 影響）
+  cx.fillStyle='#000010';cx.fillRect(0,0,W,H);
+  stars.forEach(s=>{s.y+=s.sp;if(s.y>H)s.y=0;cx.fillStyle=(fr+s.ph)%26<13?'#ffffff':'#3333aa';cx.fillRect(snap(s.x),snap(s.y),s.s*P,s.s*P);});
+
+  // 檸檬王：200分第一次，之後每滿300分出現一次
+  let lemonThresh=score<200?0:(200+Math.floor((score-200)/300)*300);
+  if(lemonThresh>0&&lemonThresh>lastLemonThreshold&&!lemonBossActive){
+    lastLemonThreshold=lemonThresh;spawnLemonBoss();
+  }
+  // 黑曼巴：每滿2000分出現一次
+  let mambaThresh=Math.floor(score/2000)*2000;
+  if(mambaThresh>0&&mambaThresh>lastMambaThreshold&&!mambaActive){
+    lastMambaThreshold=mambaThresh;spawnMamba();
+  }
+  // 小怪持續生成（不再受黑曼巴影響）
+  spawnTimer++;if(spawnTimer>=spawnIv){
+    if(enemies.length<20)spawnEnemy(); // 場上最多20隻，避免爆量
+    spawnTimer=0;
+    if(fr>400)spawnIv=Math.max(55,spawnIv-1);
+  }
+
+  // ── 合成系統：同類型5隻→中型怪（3500分後，一般模式才觸發）──
+  if(!challengeMode && score>=3500){
+    const threshold=score>=6000?3:5; // 6000分後門檻降至3隻，更容易合成
+    const mergeTypes=['heart','moon','star','butterfly','snake'];
+    mergeTypes.forEach(t=>{
+      let same=enemies.filter(e=>e.type===t&&!e.merged);
+      if(same.length>=threshold){
+        let removed=0,mx=0,my=0;
+        enemies=enemies.filter(e=>{
+          if(e.type===t&&!e.merged&&removed<threshold){removed++;mx+=e.x;my+=e.y;return false;}
+          return true;
+        });
+        mx/=removed;my/=removed;
+        enemies.push({x:mx,y:my,vx:(Math.random()-0.5)*1.5,vy:0.6+Math.random()*0.6,
+          r:22,type:t,hp:10,maxHp:10,rot:0,rotSpeed:(Math.random()-0.5)*0.03,
+          hit:0,coins:3,merged:true});
+        spawnParticles(mx,my,'#ffffff',20);
+      }
+    });
+  }
+
+  ship.x+=(ship.tx-ship.x)*0.14;ship.y+=(ship.ty-ship.y)*0.14;
+  ship.x=Math.max(22,Math.min(W-22,ship.x));
+  // 多角色模式不需要額外邊界限制，圖示可以超出畫面
+  ship.y=Math.max(SHIP_MIN_Y,Math.min(SHIP_MAX_Y,ship.y));
+
+  // shake：每幀都 save，確保 restore 一定執行
+  cx.save();
+  if(shakeTimer>0){cx.translate((Math.random()-0.5)*4,(Math.random()-0.5)*4);shakeTimer--;}
+
+  // ── 子彈移動＋繪製 ──
+  bullets=bullets.filter(b=>{
+    b.x+=b.vx;b.y+=b.vy;
+    if(b.y<=-20||b.y>=H+10||b.x<=-10||b.x>=W+10)return false;
+    drawChallengeBullet(b);
+    return true;
+  });
+
+  // ── 敵人更新：移動→碰撞子彈→碰撞玩家→繪製 ──
+  enemies=enemies.filter(e=>{
+    // 移動
+    e.x+=e.vx;e.y+=e.vy;
+    if(e.x<e.r)e.vx=Math.abs(e.vx);
+    if(e.x>W-e.r)e.vx=-Math.abs(e.vx);
+    e.rot+=e.rotSpeed;
+    if(e.hit>0)e.hit--;
+
+    // 超出底部
+    if(e.y>H+40){
+      if(superMode<=0&&sweepMode<=0){lives--;resetCombo();if(lives<=0){endGame();return false;}}
+      return false;
+    }
+
+    // 子彈碰撞
+    let killed=false;
+    bullets=bullets.filter(b=>{
+      if(killed)return true; // 這隻怪已死，不再消耗子彈
+      let dx=b.x-e.x,dy=b.y-e.y;
+      if(Math.sqrt(dx*dx+dy*dy)<e.r+5){
+        // 傷害依子彈等級：LV0-1=1，LV2-3=2，LV4-5=3，LV6-7=4，LV8-9=5
+        const bulletDmg=[1,1,2,2,3,3,4,4,5,5];
+        let dmgVal=b.dmg||bulletDmg[Math.min(bulletLevel,9)];
+        e.hp-=dmgVal;e.hit=8;
+        spawnParticles(b.x,b.y,'#ffdd00',3);
+        if(e.hp<=0){
+          spawnParticles(e.x,e.y,e.type==='snake'?'#8800ff':'#ffaa00',12);
+          powerups.push({x:e.x,y:e.y,vy:1.5,type:'bullet'});
+          if(Math.random()<0.08) powerups.push({x:e.x+(Math.random()*20-10),y:e.y,vy:1.3,type:'hp'});
+          if(Math.random()<0.02&&spreadLevel<2) powerups.push({x:e.x+(Math.random()*20-10),y:e.y,vy:1.4,type:'mint'});
+          if(Math.random()<0.04) powerups.push({x:e.x+(Math.random()*20-10),y:e.y,vy:1.4,type:'corn'});
+          score+=(e.type==='snake'?25:12)*(e.merged?4:1)*comboMult;
+          addCombo();onEnemyKilled(e.type);
+          killed=true;
+        }
+        return b.laser; // 雷射穿透，普通子彈消耗
+      }
+      return true;
+    });
+    if(killed)return false; // 死亡，移除
+
+    // 碰撞玩家
+    if(superMode<=0&&sweepMode<=0){
+      let cdx=e.x-ship.x,cdy=e.y-ship.y;
+      // ae Day：玩家碰撞範圍只有中間外星飛船（半徑20）
+      let playerR=challengeMode&&todayChallenge&&todayChallenge.id==='ae'?20:16;
+      if(Math.sqrt(cdx*cdx+cdy*cdy)<e.r+playerR){
+        lives--;resetCombo();
+        spawnParticles(ship.x,ship.y,'#ff0000',10);
+        if(lives<=0){endGame();return false;}
+        return false;
+      }
+    }
+
+    // 繪製
+    if(e.type==='snake')drawSnake(e.x,e.y,e.rot,e.r,e.hit>0);
+    else if(e.type==='heart')drawHeart(e.x,e.y,e.r,e.hit>0);
+    else if(e.type==='moon')drawMoon(e.x,e.y,e.r,e.rot,e.hit>0);
+    else if(e.type==='star')drawStar(e.x,e.y,e.r,e.rot,e.hit>0);
+    else if(e.type==='butterfly')drawButterfly(e.x,e.y,e.r,e.rot,e.hit>0);
+    else if(e.type==='dragonfly')drawDragonfly(e.x,e.y,e.rot,e.r,e.hit>0);
+    else if(e.type==='yam')drawYam(e.x,e.y,e.r,e.hit>0);
+    else if(e.type==='note')drawNote(e.x,e.y,e.r,e.rot,e.hit>0);
+    else if(e.type==='aespo')drawAespo(e.x,e.y,e.r,e.hit>0);
+    else if(e.type==='mini_lemon')drawMiniLemon(e.x,e.y,e.r,e.hit>0);
+    else if(e.type==='sm_building')drawSMBuilding(e.x,e.y,e.r,e.hit>0);
+    if(e.maxHp>1){
+      pr(e.x-e.r,e.y+e.r+22,e.r*2,3,'#330000');
+      pr(e.x-e.r,e.y+e.r+22,e.r*2*(e.hp/e.maxHp),3,'#00ff44');
+    }
+    return true;
+  });
+
+  if(lemonBoss){
+    let lb=lemonBoss;
+    lb.x+=(lb.tx-lb.x)*0.018;if(Math.abs(lb.x-lb.tx)<10)lb.tx=30+Math.random()*(W-60);
+    lb.y=Math.min(90,lb.y+0.9);lb.shootTimer++;
+    let interval=lemonBossCount>=3?(lb.shotPhase===0?100:70):110;
+    if(lb.shootTimer>interval){
+      lb.shootTimer=0;
+      let ang=Math.atan2(ship.y-lb.y,ship.x-lb.x);
+      if(lemonBossCount>=3&&lb.shotPhase===1){
+        // 三小子彈
+        for(let i=-1;i<=1;i++)
+          bossBullets.push({x:lb.x,y:lb.y+lb.r,vx:Math.cos(ang+i*0.28)*2.2,vy:Math.sin(ang+i*0.28)*2.2,type:'lemon',r:5,life:200,big:false});
+        lb.shotPhase=0;
+      } else {
+        // 一大子彈
+        bossBullets.push({x:lb.x,y:lb.y+lb.r,vx:Math.cos(ang)*1.8,vy:Math.sin(ang)*1.8,type:'lemon',r:10,life:220,big:true});
+        if(lemonBossCount>=3)lb.shotPhase=1;
+      }
+    }
+    if(lb.hit>0)lb.hit--;
+    let dmg=checkBulletHit(lb,lb.r);
+    if(dmg){lb.hp--;lb.hit=8;shakeTimer=4;
+      if(lb.hp<=0){
+        spawnParticles(lb.x,lb.y,'#f5e000',30);
+        if(Math.random()<0.05){
+          powerups.push({x:lb.x,y:lb.y,vy:1.4,type:'super'});
+        } else {
+          // 綠色檸檬片：隨機子彈經驗值，+5機率最高
+          const expTable=[5,5,5,5,5,5,10,10,10,15,15,15,20,20,30,30,40,50];
+          const expVal=expTable[Math.floor(Math.random()*expTable.length)];
+          powerups.push({x:lb.x,y:lb.y,vy:1.4,type:'lemon_green',expVal});
+        }
+        score+=150;lemonBoss=null;lemonBossActive=false;
+      }
+    } else drawLemonBoss(lb);
+  }
+
+  if(mamba){
+    let mb=mamba;
+    mb.x+=mb.vx;if(mb.x<mb.r+10||mb.x>W-mb.r-10)mb.vx*=-1;
+    mb.y=Math.min(110,mb.y+0.8);mb.angle+=0.04;mb.shootTimer++;
+    if(mb.shootTimer>35){mb.shootTimer=0;let ang=Math.atan2(ship.y-mb.y,ship.x-mb.x);bossBullets.push({x:mb.x,y:mb.y+mb.r,vx:Math.cos(ang)*2.8+Math.sin(fr*0.1)*0.8,vy:Math.sin(ang)*2.8+0.5,type:'slime',r:7,life:180});}
+    if(mb.hit>0)mb.hit--;
+    let dmg=checkBulletHit(mb,mb.r);
+    if(dmg){mb.hp--;mb.hit=8;shakeTimer=6;
+      if(mb.hp<=0){
+        spawnParticles(mb.x,mb.y,'#aa00ff',40);
+        if(Math.random()<0.05){
+          powerups.push({x:mb.x,y:mb.y,vy:1.4,type:'super'});
+        } else {
+          const expTable=[5,5,5,5,5,5,10,10,10,15,15,15,20,20,30,30,40,50];
+          const expVal=expTable[Math.floor(Math.random()*expTable.length)];
+          powerups.push({x:mb.x,y:mb.y,vy:1.4,type:'lemon_green',expVal});
+        }
+        score+=300;
+        mambaKillCount++;
+        // 第2次起分裂3隻小黑曼巴
+        if(mambaKillCount>=2){
+          for(let i=-1;i<=1;i++){
+            enemies.push({
+              x:mb.x+i*40,y:mb.y,
+              vx:i*1.5+(Math.random()-0.5),vy:0.8+Math.random()*0.5,
+              r:15,type:'snake',hp:3,maxHp:3,
+              rot:0,rotSpeed:(Math.random()-0.5)*0.06,hit:0,coins:0
+            });
+          }
+        }
+        mamba=null;mambaActive=false;
+      }
+    }
+    else drawMambaHead(mb);
+  }
+
+  bossBullets=bossBullets.filter(b=>{
+    b.x+=b.vx;b.y+=b.vy;b.vy+=0.03;b.life--;
+    if(b.type==='lemon'){
+      let r=b.big?12:7;
+      let rot=fr*0.06;
+      // 8角星形（長短交替）
+      cx.fillStyle='#f5e000';
+      cx.beginPath();
+      for(let i=0;i<16;i++){
+        let a=rot+i*Math.PI/8;
+        let ri=i%2===0?r:r*0.42;
+        let px=b.x+Math.cos(a)*ri,py=b.y+Math.sin(a)*ri;
+        i===0?cx.moveTo(snap(px),snap(py)):cx.lineTo(snap(px),snap(py));
+      }
+      cx.closePath();cx.fill();
+      // 內層亮黃
+      cx.fillStyle='#fff066';
+      cx.beginPath();
+      for(let i=0;i<16;i++){
+        let a=rot+i*Math.PI/8;
+        let ri=i%2===0?r*0.7:r*0.3;
+        let px=b.x+Math.cos(a)*ri,py=b.y+Math.sin(a)*ri;
+        i===0?cx.moveTo(snap(px),snap(py)):cx.lineTo(snap(px),snap(py));
+      }
+      cx.closePath();cx.fill();
+      // 中心白光
+      cx.fillStyle='#fffde0';cx.beginPath();cx.arc(snap(b.x),snap(b.y),r*0.22,0,Math.PI*2);cx.fill();
+      cx.fillStyle='#ffffff';cx.beginPath();cx.arc(snap(b.x-r*0.06),snap(b.y-r*0.06),r*0.12,0,Math.PI*2);cx.fill();
+    } else {
+      pr(b.x-b.r,b.y-b.r,b.r*2,b.r*2,'#1a0a2e');pr(b.x-b.r+2,b.y-b.r+2,b.r*2-4,b.r*2-4,'#2d1155');pr(b.x-2,b.y-2,4,4,'#8800ff');
+    }
+    if(superMode<=0&&sweepMode<=0){
+      let dx=b.x-ship.x,dy=b.y-ship.y;
+      // ae Day：只有中間外星飛船範圍（半徑20），其他正常（+14）
+      let hitR=b.r+(challengeMode&&todayChallenge&&todayChallenge.id==='ae'?20:14);
+      if(Math.sqrt(dx*dx+dy*dy)<hitR){lives--;resetCombo();spawnParticles(ship.x,ship.y,'#00ff88',10);if(lives<=0){endGame();return false;}return false;}
+    }
+    return b.life>0&&b.y<H+20;
+  });
+
+
+  powerups=powerups.filter(p=>{
+    p.y+=p.vy;
+    // 磁吸漂移：道具輕微往玩家方向漂移（bullet 自動收集不需要漂移）
+    if(p.type!=='bullet'&&ship){
+      let dx=ship.x-p.x,dy=ship.y-p.y;
+      let dist=Math.sqrt(dx*dx+dy*dy)||1;
+      if(dist<120){
+        p.x+=dx/dist*0.8;
+        p.y+=dy/dist*0.8;
+      }
+    }
+    // bullet 增強劑：自動收集，不需靠近
+    if(p.type==='bullet'){
+      if(bulletLevel<9){
+        bulletExp++;
+        if(bulletExp>=(bulletExpNeeded[bulletLevel]||5)){
+          bulletExp=0; bulletLevel++;
+          spawnParticles(p.x,p.y,'#00ffcc',16);
+        } else {
+          spawnParticles(p.x,p.y,'#00ff88',4);
+        }
+      }
+      return false;
+    }
+    drawPickup(p);
+    let dx=p.x-ship.x,dy=p.y-ship.y;
+    // 收集半徑：多角色模式擴大到整個圖示範圍
+    let collectR=22;
+    if(challengeMode&&todayChallenge){
+      const id=todayChallenge.id;
+      if(id==='ae') collectR=80;          // 菱形半徑約72*0.85
+      else if(id==='kwangya'||id==='lemon') collectR=90; // 一排寬度52*1.5
+    }
+    if(Math.sqrt(dx*dx+dy*dy)<collectR){
+      if(p.type==='hp'){lives=Math.min(9,lives+1);spawnParticles(ship.x,ship.y,'#00ff44',12);}
+      else if(p.type==='mint'){
+        // 薄荷巧克力：子彈擴散升一級
+        spreadLevel=Math.min(2,spreadLevel+1);
+        spawnParticles(p.x,p.y,'#44ffaa',16);
+        triggerMsg(spreadLevel===1?'🍫 子彈擴散 ×2！':'🍫 子彈擴散 ×3！MAX！','#44ffcc');
+      }
+      else if(p.type==='corn'){
+        const bulletDmg=[1,1,2,2,3,3,4,4,5,5];
+        let dmgVal=bulletDmg[Math.min(bulletLevel,9)];
+        spawnParticles(p.x,p.y,'#ffee88',25);
+        spawnParticles(p.x,p.y,'#ffffff',15);
+        spawnParticles(p.x,p.y,'#ffcc44',10);
+        shakeTimer=8;
+        cx.save();cx.globalAlpha=0.6;cx.fillStyle='#ffffaa';
+        cx.beginPath();cx.arc(snap(p.x),snap(p.y),40,0,Math.PI*2);cx.fill();
+        cx.globalAlpha=1;cx.restore();
+        for(let i=0;i<20;i++){
+          let a=(i/20)*Math.PI*2+Math.random()*0.3;
+          let spd=2.5+Math.random()*4;
+          bullets.push({x:p.x,y:p.y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,laser:false,big:false,bsize:'popcorn',dmg:dmgVal});
+        }
+        triggerMsg('long chat (#♥)','#ffee44');
+      }
+      else if(p.type==='lemon_green'){
+        // 加子彈經驗值
+        let val=p.expVal||5;
+        if(bulletLevel<9){
+          bulletExp+=val;
+          while(bulletExp>=(bulletExpNeeded[bulletLevel]||999)&&bulletLevel<9){
+            bulletExp-=bulletExpNeeded[bulletLevel];
+            bulletLevel++;
+            spawnParticles(ship.x,ship.y,'#00ffcc',16);
+          }
+        }
+        spawnParticles(p.x,p.y,'#88ff44',8);
+        // 顯示+N浮字
+        eggMsg='+'+val+' 子彈經驗';eggMsgTimer=80;eggMsgColor='#88ff44';
+      }
+      else if(p.type==='super'){
+        if(bulletLevel>=9){
+          // LV9：7秒清場模式，怪物自動死亡但獎勵保留
+          sweepMode=420; sweepCount=0; // 420幀=7秒，sweepCount=0表示持續清場
+          spawnParticles(ship.x,ship.y,'#ff44ff',28);
+        } else if(bulletLevel>=8){
+          // LV8：紅光掃空×2次
+          sweepMode=180; sweepCount=2;
+          spawnParticles(ship.x,ship.y,'#ff4444',24);
+        } else {
+          superMode=600;
+          spawnParticles(ship.x,ship.y,'#ffff00',20);
+        }
+      }
+      return false;
+    }
+    return p.y<H+20;
+  });
+
+  particles=particles.filter(p=>{
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.06;p.life--;
+    if(p.coin){if(Math.abs(p.x-ship.x)<20&&Math.abs(p.y-ship.y)<20){coins++;return false;}pr(p.x-3,p.y-3,6,6,'#ffd700');pr(p.x-1,p.y-1,3,3,'#fff');}
+    else if(p.life>0){cx.globalAlpha=p.life/p.maxLife;cx.fillStyle=p.color;cx.fillRect(snap(p.x-2),snap(p.y-2),P*2,P*2);cx.globalAlpha=1;}
+    return p.life>0;
+  });
+
+  // ── 連殺計時器 ──
+  if(comboTimer>0){
+    comboTimer--;
+    if(comboTimer===0) resetCombo();
+  }
+  // ── 連殺閃字 ──
+  if(comboFlashTimer>0){
+    comboFlashTimer--;
+    let alpha=comboFlashTimer>60?1:comboFlashTimer/60;
+    let col=comboColors[comboMult-1]||'#ffff00';
+    cx.save();cx.globalAlpha=alpha;
+    cx.font=`bold ${18+comboMult*2}px "Courier New"`;
+    cx.fillStyle=col;cx.textAlign='center';
+    cx.shadowColor=col;cx.shadowBlur=14;
+    cx.fillText(comboFlashMsg,W/2,H/2-20);
+    cx.shadowBlur=0;cx.restore();
+  }
+  // ── 51分彩蛋 ──
+  if(!eggScore51Done&&score>50){eggScore51Done=true;triggerFlash('aerea51tw','#00ffcc');}
+
+  // ── 飛到頂端彩蛋 ──
+  if(ship.y<=SHIP_MIN_Y+4){
+    topEdgeTimer++;
+    if(topEdgeTimer>120&&!topEggDone){topEggDone=true;triggerMsg('你發現隱藏訊息！AEREA51TW 永遠支持 aespa 🛸','#ff88ff');}
+  } else {topEdgeTimer=0;}
+
+  // ── 秘密模式：開始畫面點外星人6下觸發，讓子彈顏色變彩虹 ──
+
+  if(sweepMode>0&&fr%6<3){cx.strokeStyle='rgba(255,50,50,0.6)';cx.lineWidth=4;cx.strokeRect(2,30,W-4,H-32);}
+  else if(superMode>0&&fr%6<3){cx.strokeStyle='rgba(255,255,0,0.5)';cx.lineWidth=3;cx.strokeRect(2,30,W-4,H-32);}
+  if(secretModeActive&&fr%6<3){cx.strokeStyle='rgba(255,100,255,0.4)';cx.lineWidth=2;cx.strokeRect(4,32,W-8,H-36);}
+
+  // ── 自動射擊 ──
+  if(autoFireOn){
+    autoFireTimer++;
+    if(autoFireTimer>=AUTO_FIRE_INTERVAL){
+      autoFireTimer=0;
+      // 直射向正上方，不追蹤
+      fireAt(ship.x, ship.y-300);
+    }
+    if(fr%8<4){pr(ship.x-18,ship.y,4,4,'#00ff88');}
+  }
+
+  // ── POS 特效 ──
+  if(posActive){
+    posTimer--;
+    if(posTimer<=0)posActive=false;
+    let alpha=(posTimer/90)*0.5;
+    cx.globalAlpha=alpha;
+    // 波紋擴散效果
+    let radius=(1-posTimer/90)*W*0.8;
+    cx.strokeStyle='#ff44ff';cx.lineWidth=4;
+    cx.beginPath();cx.arc(snap(ship.x),snap(ship.y),radius,0,Math.PI*2);cx.stroke();
+    cx.strokeStyle='#ffffff';cx.lineWidth=2;
+    cx.beginPath();cx.arc(snap(ship.x),snap(ship.y),radius*0.6,0,Math.PI*2);cx.stroke();
+    cx.globalAlpha=1;
+    // P.O.S 大字閃現
+    if(posTimer>60){
+      cx.font='bold 32px "Courier New"';cx.fillStyle='#ff44ff';
+      cx.textAlign='center';cx.shadowColor='#ff44ff';cx.shadowBlur=20;
+      cx.fillText('P.O.S',W/2,H/2);
+      cx.shadowBlur=0;cx.textAlign='left';
+    }
+  }
+
+  let ef=fr%10<5;
+  pr(ship.x-3,ship.y+16,6,ef?8:6,secretModeActive?`hsl(${fr*6%360},100%,60%)`:'#00ff88');
+  pr(ship.x-2,ship.y+16,4,ef?6:4,'#aaffcc');
+  drawUFO(ship.x,ship.y);
+
+  // shake restore：無條件執行
+  cx.restore();
+
+  // UI 層（不受 shake 影響）
+  for(let i=0;i<Math.min(lives,9);i++)pr(W-12-i*14,H-18,10,10,'#ff4488');
+
+  // ── POS 按鈕（左下角，充能完成才顯示）──
+  let posX=10,posY=H-58,posR=26;
+  let posCX=posX+posR,posCY=posY+posR;
+  if(posReady){
+    let pulse=fr%16<8;
+    cx.globalAlpha=pulse?0.5:0.25;
+    cx.fillStyle='#cc44ff';
+    cx.beginPath();cx.arc(posCX,posCY,posR+6,0,Math.PI*2);cx.fill();
+    cx.globalAlpha=1;
+    for(let i=3;i>=0;i--){
+      cx.fillStyle=i===0?'#000000':i===1?'#330044':i===2?'#550066':'#7700aa';
+      cx.beginPath();cx.arc(posCX,posCY,posR-i*4,0,Math.PI*2);cx.fill();
+    }
+    let rot=fr*0.08;
+    cx.strokeStyle=pulse?'#ff44ff':'#cc44ff';cx.lineWidth=2;
+    cx.save();cx.translate(posCX,posCY);cx.rotate(rot);
+    cx.beginPath();cx.arc(0,0,posR-4,0,Math.PI*1.5);cx.stroke();
+    cx.rotate(Math.PI);
+    cx.beginPath();cx.arc(0,0,posR-10,0,Math.PI*1.5);cx.stroke();
+    cx.restore();
+    cx.font='bold 10px "Courier New"';cx.fillStyle='#ff88ff';
+    cx.textAlign='center';cx.fillText('P.O.S',posCX,posCY+4);cx.textAlign='left';
+  }
+  // 充能中不顯示任何東西（隱藏）
+
+  hud();
+  drawEggOverlay();
+}
+
+function updateBestDisplay(){
+  bestScore=parseInt(localStorage.getItem('aerea51tw_best')||'0');
+  const el=document.getElementById('bestDisp');
+  if(el)el.textContent='最佳紀錄：'+bestScore;
+}
+
+function endGame(){
+  state='idle';
+  if(challengeMode&&todayChallenge){
+    saveChallengeRecord(todayChallenge.id,score);
+    const chBest=getChallengeRecord(todayChallenge.id)||0;
+    let extraMsg='';
+    if(score>=10000) extraMsg='<div style="font-size:11px;color:#00ffcc;margin-top:6px;font-family:\'Courier New\',monospace">恭喜你並不是遊戲黑洞，跟aespa擁有非常大的區別 😂🎉</div>';
+    else if(score<200) extraMsg='<div style="font-size:11px;color:#ff88aa;margin-top:6px;font-family:\'Courier New\',monospace">難道...你是aespa派來的遊戲黑洞?? 🕳️👾</div>';
+    showMainMenu(`${todayChallenge.emoji} 挑戰結束！<br>本次：${score} pts ／ 最佳：${chBest} pts${extraMsg}`);
+  } else {
+    if(score>bestScore){bestScore=score;localStorage.setItem('aerea51tw_best',bestScore);}
+    let extraMsg='';
+    if(score>=10000) extraMsg='<div style="font-size:11px;color:#00ffcc;margin-top:6px;font-family:\'Courier New\',monospace">恭喜你並不是遊戲黑洞，跟aespa擁有非常大的區別 😂🎉</div>';
+    else if(score<200) extraMsg='<div style="font-size:11px;color:#ff88aa;margin-top:6px;font-family:\'Courier New\',monospace">難道...你是aespa派來的遊戲黑洞?? 🕳️👾</div>';
+    showMainMenu(`本次分數：${score}${extraMsg}`);
+  }
+}
+
+// ── 頁面導航 ──────────────────────────────────────────────
+function showMainMenu(extraHtml=''){
+  challengeMode=false;
+  todayChallenge=getTodayChallenge();
+  const ov=document.getElementById('ov');
+  const isRest=todayChallenge.id==='rest';
+  const todayLabel=isRest?'📅 今日：公休日':`${todayChallenge.emoji} 今日：${todayChallenge.name}`;
+  ov.innerHTML=`
+    <h2>★ ALIEN BLASTER ★</h2>
+    <div class="a51" id="a51tag" style="cursor:pointer;user-select:none">${secretModeEverActive?'🛸 SECRET MODE ON 🛸':'AEREA51TW'}</div>
+    <div class="best" id="bestDisp">最佳紀錄：${bestScore}</div>
+    ${extraHtml?`<div class="sub" style="margin-bottom:10px;font-size:11px">${extraHtml}</div>`:''}
+    <button id="btnNormal" class="ov-btn">▶ 一般模式 ◀</button>
+    <button id="btnChallenge" class="ov-btn today">⚡ 今日挑戰 ◀</button>
+    <button id="btnRecord" class="ov-btn rec">📊 過往紀錄</button>`;
+  ov.style.display='flex';
+  document.getElementById('btnNormal').onclick=()=>{challengeMode=false;startGame();};
+  document.getElementById('btnChallenge').onclick=()=>showChallengeSelect();
+  document.getElementById('btnRecord').onclick=()=>showRecords();
+  setupA51Click();
+}
+
+function showChallengeSelect(){
+  const ov=document.getElementById('ov');
+  const allOptions=[...CHALLENGE_DAYS,{id:'rest',name:'公休日（系統停機）',emoji:'📅'}];
+  let btns=allOptions.map(d=>`
+    <button class="ov-btn" style="width:300px;padding:9px 0;font-size:12px;letter-spacing:1px;margin-bottom:5px" data-id="${d.id}">
+      ${d.emoji} ${d.name}
+    </button>`).join('');
+  ov.innerHTML=`
+    <div style="font-family:'Courier New',monospace;text-align:center;color:#00ff88;font-size:13px;letter-spacing:2px;margin-bottom:12px">⚡ 選擇挑戰模式</div>
+    ${btns}
+    <button id="btnBack0" class="ov-btn rec" style="width:300px;margin-top:4px">← 返回</button>`;
+  ov.style.display='flex';
+  allOptions.forEach(d=>{
+    ov.querySelector(`[data-id="${d.id}"]`).onclick=()=>showChallengeInfo(d);
+  });
+  document.getElementById('btnBack0').onclick=()=>showMainMenu();
+}
+
+function showChallengeInfo(dayOverride){
+  const day=dayOverride||getTodayChallenge();
+  const ov=document.getElementById('ov');
+  if(day.id==='rest'){
+    ov.innerHTML=`
+      <div class="rest-page">
+        <div class="rest-body">> AEREA51TW SYSTEM LOG\n> DATE : [REDACTED]\n> STATUS : ████████ ERROR\n\n⚠️ 外星人今日接受秘密任務中\n   挑戰系統臨時離線\n\n[ REASON  ] : ae 心情不好\n[ ETA     ] : 不確定\n[ SORRY?  ] : 有一點點\n\n> 嘗試重新連線中........\n> 連線失敗\n> 連線失敗\n> 連線失敗\n> 算了\n\n-- AEREA51TW / 造成困擾深感抱歉 --\n   ( 其實沒有很抱歉 )</div>
+        <div style="margin-top:12px;text-align:center"><button id="btnBack" class="ov-btn rec">← 返回</button></div>
+      </div>`;
+    ov.style.display='flex';
+    document.getElementById('btnBack').onclick=()=>showMainMenu();
+    return;
+  }
+  const bgMap={
+    karina:  {bg:'rgba(100,160,255,0.10)',border:'rgba(100,160,255,0.35)',text:'#aaccff'},
+    giselle: {bg:'rgba(255,150,180,0.10)',border:'rgba(255,150,180,0.35)',text:'#ffaabb'},
+    winter:  {bg:'rgba(230,240,255,0.12)',border:'rgba(200,220,255,0.45)',text:'#cce0ff'},
+    ningning:{bg:'rgba(180,100,255,0.10)',border:'rgba(180,100,255,0.35)',text:'#cc99ff'},
+    ae:      {bg:'rgba(255,100,100,0.08)',border:'rgba(255,100,100,0.3)', text:'#ff9999',rainbow:true},
+    lemon:   {bg:'rgba(255,220,50,0.10)', border:'rgba(255,220,50,0.35)', text:'#ffdd88'},
+    kwangya: {bg:'rgba(255,120,30,0.10)', border:'rgba(255,120,30,0.35)', text:'#ff9955'},
+  };
+  const bc=bgMap[day.id]||{bg:'rgba(0,255,136,0.05)',border:'rgba(0,255,136,0.25)',text:'#88ffaa'};
+  let bodyStyle=`background:${bc.bg};border:1px solid ${bc.border};color:${bc.text}`;
+  if(bc.rainbow){
+    bodyStyle=`background:linear-gradient(135deg,rgba(255,80,80,0.08),rgba(255,200,0,0.08),rgba(0,255,100,0.08),rgba(0,150,255,0.08),rgba(180,0,255,0.08));border:1px solid rgba(255,180,255,0.4);color:#ddbbff`;
+  }
+  const noDate=['無特定事件','一個月出現一次'];
+  const showDate=!noDate.includes(day.date);
+  ov.innerHTML=`
+    <div class="challenge-page">
+      <div class="challenge-emoji">${day.emoji}</div>
+      <div class="challenge-title" style="color:${bc.text}">${day.name}</div>
+      ${showDate?`<div class="challenge-date" style="color:#ffffff">${day.date}</div>`:''}
+      <div class="challenge-body" style="${bodyStyle};text-align:center">${day.body}</div>
+      <div class="challenge-hud" style="color:#ffffff">HUD 口號：${day.hud}</div>
+      <div style="display:flex;gap:8px;justify-content:center">
+        <button id="btnStartChallenge" class="ov-btn today" style="width:180px;padding:11px 0">⚡ 開始挑戰</button>
+        <button id="btnBack2" class="ov-btn rec" style="width:80px;padding:11px 0">← 返回</button>
+      </div>
+    </div>`;
+  ov.style.display='flex';
+  document.getElementById('btnStartChallenge').onclick=()=>{
+    todayChallenge=day;
+    challengeMode=true;
+    secretModeActive=false; // 今日挑戰不適用秘密模式
+    startGame();
+  };
+  document.getElementById('btnBack2').onclick=()=>showMainMenu();
+}
+
+function showRecords(){
+  const ov=document.getElementById('ov');
+  let rows='';
+  const allDays=[...CHALLENGE_DAYS,{id:'kwangya',name:'Beat KWANGYA'}];
+  const ids=['karina','giselle','winter','ningning','ae','lemon','kwangya'];
+  const names={"karina":"Karina's Day","giselle":"Giselle's Day","winter":"Winter's Day","ningning":"Ningning's Day","ae":"Be my æ Day","lemon":"Lemon Day~","kwangya":"Beat KWANGYA"};
+  ids.forEach(id=>{
+    const rec=getChallengeRecord(id);
+    if(rec===null){
+      rows+=`<div class="record-row"><span class="record-locked">尚無查閱權限</span><span class="record-zero">---- pts</span></div>`;
+    } else if(rec===0){
+      rows+=`<div class="record-row"><span class="record-name">${names[id]}</span><span class="record-zero">尚未留下紀錄</span></div>`;
+    } else {
+      rows+=`<div class="record-row"><span class="record-name">${names[id]}</span><span class="record-score">${rec} pts</span></div>`;
+    }
+  });
+  ov.innerHTML=`
+    <div class="record-page">
+      <div class="record-title">📊 AEREA51TW 戰績紀錄</div>
+      <div class="record-section">── 一般模式 ──</div>
+      <div class="record-row"><span class="record-name">最佳紀錄</span><span class="record-score">${bestScore} pts</span></div>
+      <div class="record-section" style="margin-top:14px">── 挑戰日紀錄 ──</div>
+      ${rows}
+      <div style="margin-top:16px"><button id="btnBack3" class="ov-btn rec" style="width:100%;padding:13px 0">← 返回</button></div>
+    </div>`;
+  ov.style.display='flex';
+  document.getElementById('btnBack3').onclick=()=>showMainMenu();
+}
+
+function startGame(){document.getElementById('ov').style.display='none';initGame();state='play';requestAnimationFrame(loop);}
+function setupA51Click(){
+  const a51el=document.getElementById('a51tag');
+  if(!a51el||secretModeEverActive)return;
+  let clickTimer=null;
+  a51el.addEventListener('click',function handler(e){
+    if(state!=='idle')return;
+    e.stopPropagation();
+    alienClickCount++;
+    a51el.style.background='#00ff88';a51el.style.color='#002211';
+    setTimeout(()=>{a51el.style.background='#00aa44';a51el.style.color='#fff';},120);
+    a51el.title=`${alienClickCount}/6`;
+    if(clickTimer)clearTimeout(clickTimer);
+    clickTimer=setTimeout(()=>{alienClickCount=0;a51el.title='';},3000);
+    if(alienClickCount>=6){
+      clearTimeout(clickTimer);alienClickCount=0;a51el.title='';
+      secretModeActive=true;secretModeEverActive=true;
+      a51el.style.background='linear-gradient(90deg,#88ddff,#ddaaff)';
+      a51el.style.color='#000';a51el.textContent='🛸 SECRET MODE ON 🛸';
+      a51el.removeEventListener('click',handler);
+      const msg=document.createElement('div');
+      msg.style.cssText='font-size:11px;color:#ff88ff;font-family:"Courier New",monospace;margin-top:8px;text-align:center';
+      msg.textContent='隱藏模式已啟動！子彈變彩虹色 ✨';
+      a51el.parentNode.insertBefore(msg,a51el.nextSibling);
+      setTimeout(()=>{if(msg.parentNode)msg.parentNode.removeChild(msg);},4000);
+    }
+  });
+}
+
+cv.addEventListener('mousedown',e=>{
+  if(state!=='play')return;
+  dragStart=getPos(e);touchMoved=false;
+  autoFireOn=true;autoFireTimer=0; // 按下立即開始射擊
+});
+cv.addEventListener('mousemove',e=>{
+  if(!dragStart||state!=='play')return;
+  let p=getPos(e),dx=p.x-dragStart.x,dy=p.y-dragStart.y;
+  if(Math.abs(dx)>3||Math.abs(dy)>3)touchMoved=true;
+  ship.tx+=dx;ship.ty+=dy;dragStart=p;
+});
+cv.addEventListener('mouseup',e=>{
+  if(state!=='play')return;
+  let p=getPos(e);
+  if(!touchMoved&&dragStart&&posReady&&p.x<70&&p.y>H-70){triggerPOS();}
+  autoFireOn=false; // 放開停止射擊
+  dragStart=null;touchMoved=false;
+});
+cv.addEventListener('touchstart',e=>{
+  e.preventDefault();if(state!=='play')return;
+  dragStart=getPos(e);touchMoved=false;
+  autoFireOn=true;autoFireTimer=0; // 觸碰立即開始射擊
+},{passive:false});
+cv.addEventListener('touchmove',e=>{
+  e.preventDefault();if(!dragStart||state!=='play')return;
+  let p=getPos(e),dx=p.x-dragStart.x,dy=p.y-dragStart.y;
+  if(Math.abs(dx)>4||Math.abs(dy)>4)touchMoved=true;
+  ship.tx+=dx;ship.ty+=dy;dragStart=p;
+},{passive:false});
+cv.addEventListener('touchend',e=>{
+  e.preventDefault();if(state!=='play')return;
+  if(!touchMoved&&dragStart){
+    let rc=cv.getBoundingClientRect(),t=e.changedTouches[0];
+    let px=(t.clientX-rc.left)*(W/rc.width),py=(t.clientY-rc.top)*(H/rc.height);
+    if(posReady&&px<70&&py>H-70){triggerPOS();}
+  }
+  autoFireOn=false; // 放開停止射擊
+  dragStart=null;touchMoved=false;
+},{passive:false});
+
+// 初始化
+bestScore=parseInt(localStorage.getItem('aerea51tw_best')||'0');
+initGame();
+cx.fillStyle='#000010';cx.fillRect(0,0,W,H);
+stars.forEach(s=>{cx.fillStyle='#aaaaee';cx.fillRect(snap(s.x),snap(s.y),s.s*P,s.s*P);});
+drawUFO(W/2,H-80);
+showMainMenu();
+</script>
+</body>
+</html>
